@@ -1,11 +1,13 @@
 import { Link, useLocation } from "wouter";
-import { useAuth, useAuthStore } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth";
 import {
-  LayoutDashboard, Plus, Briefcase, Users, Zap, CreditCard,
+  LayoutDashboard, Plus, Zap, CreditCard,
   BarChart3, LogOut, Building2, ChevronRight,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Logo } from "@/components/Logo";
+import { useSystemTheme } from "@/hooks/use-system-theme";
+import { useState } from "react";
 
 const recruiterNavItems = [
   { href: "/dashboard/recruiter", icon: LayoutDashboard, label: "Dashboard", exact: true },
@@ -56,9 +58,12 @@ function RecruiterNavItem({
 
 export function RecruiterLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
+  const [theme] = useState(localStorage.getItem("hirenext_theme") || "system");
+  useSystemTheme(theme);
 
   const initials = user?.name
-    ? user.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+    ? user.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
     : "R";
 
   return (
@@ -89,7 +94,7 @@ export function RecruiterLayout({ children }: { children: React.ReactNode }) {
               {initials}
             </div>
             <button
-              onClick={logout}
+              onClick={async () => { await logout(); setLocation("/login"); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/40 hover:text-white hover:bg-white/5 transition-all"
             >
               <LogOut className="w-4 h-4" />

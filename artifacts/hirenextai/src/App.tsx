@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useAuthStore } from "@/hooks/use-auth";
 import { useDemoStore } from "@/store/demo";
 import { useEffect, useLayoutEffect } from "react";
 import LoginSuccess from "./pages/LoginSuccess";
@@ -42,6 +42,8 @@ import Support from "@/pages/dashboard/support";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import RefundPolicy from "@/pages/RefundPolicy";
+import AdminEmail from "@/pages/admin/AdminEmail";
+import AdminNotifications from "@/pages/admin/AdminNotifications";
 import { CookieConsent } from "@/components/CookieConsent";
 import { DemoTimeoutModal } from "@/components/DemoTimeoutModal";
 
@@ -78,8 +80,8 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
   useEffect(() => {
     if (isDemo) return;
-    if (!token) setLocation("/");
-    else if (!isLoading && !isAuthenticated) setLocation("/");
+    if (!token) setLocation("/login");
+    else if (!isLoading && !isAuthenticated) setLocation("/login");
   }, [isDemo, token, isLoading, isAuthenticated, setLocation]);
 
   if (isDemo) {
@@ -112,7 +114,7 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!token) { setLocation("/"); return; }
+    if (!token) { setLocation("/login"); return; }
     if (!isLoading && (!isAuthenticated || user?.role !== "admin")) setLocation("/dashboard/jobs");
   }, [token, isLoading, isAuthenticated, user, setLocation]);
 
@@ -138,7 +140,7 @@ function RecruiterRoute({ component: Component }: { component: React.ComponentTy
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!token) { setLocation("/"); return; }
+    if (!token) { setLocation("/login"); return; }
     if (!isLoading && (!isAuthenticated || user?.role !== "recruiter")) setLocation("/dashboard/jobs");
   }, [token, isLoading, isAuthenticated, user, setLocation]);
 
@@ -258,6 +260,9 @@ function Router() {
       <Route path="/dashboard/support" component={() => <ProtectedRoute component={Support} />} />
       <Route path="/dashboard/admin/users" component={() => <AdminRoute component={AdminUsers} />} />
       <Route path="/dashboard/admin/tickets" component={() => <AdminRoute component={AdminDashboard} />} />
+      <Route path="/dashboard/admin/announcements" component={() => <AdminRoute component={AdminEmail} />} />
+      <Route path="/admin/announcements" component={() => <AdminRoute component={AdminEmail} />} />
+      <Route path="/dashboard/admin/notifications" component={() => <AdminRoute component={AdminNotifications} />} />
       <Route path="/dashboard/admin/credits" component={() => <AdminRoute component={AdminDashboard} />} />
       <Route path="/dashboard/admin" component={() => <AdminRoute component={AdminDashboard} />} />
       <Route component={NotFound} />

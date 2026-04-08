@@ -68,6 +68,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [otpHint, setOtpHint] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const [isGoogleReady, setIsGoogleReady] = useState(false);
@@ -146,19 +147,45 @@ export default function Auth() {
     tokenClient.requestAccessToken();
   };
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone || phone.replace(/\D/g, "").length < 10) {
       setError("Enter a valid 10-digit phone number.");
       return;
     }
     setError("");
-    setPhoneStep("enter_otp");
+    setOtpHint(null);
+    try {
+      const res = await fetch(`${API}/auth/phone/request-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to send OTP.");
+      setPhoneStep("enter_otp");
+      if (data?.otp) setOtpHint(`Dev OTP: ${data.otp}`);
+    } catch (err: any) {
+      setError(err?.message || "Failed to send OTP.");
+    }
   };
 
-  const handleOtpSubmit = (e: React.FormEvent) => {
+  const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("Phone OTP login is coming soon. Please use email or try the demo.");
+    setError("");
+    try {
+      const res = await fetch(`${API}/auth/phone/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, otp, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "OTP verification failed");
+      localStorage.setItem("hirenext_token", data.token);
+      window.location.href = data.user?.role === "admin" ? "/dashboard/admin" : data.user?.role === "recruiter" ? "/dashboard/recruiter" : "/dashboard/jobs";
+    } catch (err: any) {
+      setError(err?.message || "OTP verification failed");
+    }
   };
 
   const handleDemo = () => {
@@ -247,6 +274,24 @@ export default function Auth() {
 
             <div className="space-y-3">
 
+              {/* Role selector for sign in/up context */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRole("job_seeker")}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-xs font-semibold transition-all ${role === "job_seeker" ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-white/[0.03] border-white/10 text-white/40 hover:text-white/70"}`}
+                >
+                  <Briefcase className="w-3.5 h-3.5" /> Job Seeker
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("recruiter")}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-xs font-semibold transition-all ${role === "recruiter" ? "bg-purple-500/15 border-purple-500/40 text-purple-400" : "bg-white/[0.03] border-white/10 text-white/40 hover:text-white/70"}`}
+                >
+                  <Building2 className="w-3.5 h-3.5" /> Recruiter
+                </button>
+              </div>
+
               {/* ── 1. Google ── */}
               <button
                 onClick={handleGoogleLogin}
@@ -303,6 +348,7 @@ export default function Auth() {
                     onSubmit={handleOtpSubmit}
                     className="space-y-2.5"
                   >
+                    {otpHint && <p className="text-xs text-amber-300/90">{otpHint}</p>}
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-white/40">OTP sent to <strong className="text-white/70">{phone}</strong></span>
                       <button type="button" onClick={() => setPhoneStep("enter_phone")} className="text-xs text-indigo-400/70 hover:text-indigo-400 flex items-center gap-1 transition-colors"><RefreshCw className="w-3 h-3" /> Resend</button>
@@ -418,7 +464,7 @@ export default function Auth() {
                             });
                             if (res.ok) {
                               setError("");
-                              alert("Password reset email sent (if account exists).");
+                              setError("Reset link sent! Check your email inbox.");
                             } else {
                               setError("Could not send password reset email.");
                             }

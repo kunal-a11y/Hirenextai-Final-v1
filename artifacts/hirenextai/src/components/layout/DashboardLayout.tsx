@@ -14,6 +14,8 @@ import { Logo } from "@/components/Logo";
 import { useDemoStore } from "@/store/demo";
 import { useToast } from "@/hooks/use-toast";
 import { FloatingChat } from "@/components/FloatingChat";
+import { useSystemTheme } from "@/hooks/use-system-theme";
+import { LANGUAGE_OPTIONS, tForLanguage } from "@/lib/i18n";
 
 const PAGE_TITLES: Record<string, string> = {
   jobs: "Find Jobs",
@@ -49,11 +51,6 @@ const recruiterNavItems = [
 ];
 
 const API = import.meta.env.VITE_API_URL ?? "/api";
-const I18N = {
-  en: { account: "Account", billing: "Billing", support: "Support", theme: "Theme", language: "Language" },
-  hi: { account: "अकाउंट", billing: "बिलिंग", support: "सपोर्ट", theme: "थीम", language: "भाषा" },
-} as const;
-
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { user, logout, token } = useAuth();
@@ -72,7 +69,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [unreadAlerts, setUnreadAlerts] = useState(0);
   const [language, setLanguage] = useState(localStorage.getItem("hirenext_lang") || "en");
   const [theme, setTheme] = useState(localStorage.getItem("hirenext_theme") || "system");
-  const t = language === "hi" ? I18N.hi : I18N.en;
 
   const { data: usage } = useGetAIUsage();
   const { data: subscription } = useGetSubscription();
@@ -158,19 +154,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem("hirenext_lang", language);
-    document.documentElement.lang = language === "hi" ? "hi" : "en";
+    document.documentElement.lang = language;
   }, [language]);
 
   useEffect(() => {
     localStorage.setItem("hirenext_theme", theme);
-    const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark");
-    else if (theme === "light") root.classList.remove("dark");
-    else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.classList.toggle("dark", prefersDark);
-    }
   }, [theme]);
+
+  useSystemTheme(theme);
 
   const handlePopupCompleteNow = () => {
     setShowProfilePopup(false);
@@ -209,7 +200,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     // Clear any stale auth token so PublicRoutes don't misbehave after demo
     useAuthStore.getState().clearStore();
     toast({ title: "Demo session ended", description: "Create a free account to save your progress.", duration: 3000 });
-    setLocation("/");
+    setLocation("/login");
   };
 
   const handleLogout = async () => {
@@ -219,7 +210,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     clearExpired();
     disableDemo();
     toast({ title: "Logged out successfully", description: "See you next time!", duration: 3000 });
-    setLocation("/");
+    setLocation("/login");
   };
 
   const currentPage = location.split("/").pop() || "jobs";
@@ -227,7 +218,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const plan = subscription?.plan ?? user?.subscriptionPlan ?? "free";
   const displayName = isAnyDemoMode ? "Demo User" : (user?.name ?? "User");
   const displayEmail = isAnyDemoMode ? "demo@hirenextai.com" : (user?.email ?? "");
-  const initials = displayName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const initials = displayName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
   const PlanBadge = ({ size = "sm" }: { size?: "xs" | "sm" }) => {
     const colors: Record<string, string> = {
@@ -420,31 +411,32 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     </div>
 
                     <div className="p-2 border-b border-white/[0.07]">
-                      <p className="text-[10px] text-white/40 uppercase tracking-wider px-3 py-1.5 font-semibold">{t.account}</p>
+                      <p className="text-[10px] text-white/40 uppercase tracking-wider px-3 py-1.5 font-semibold">{tForLanguage(language, "account")}</p>
                       <Link href="/dashboard/subscription" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] text-white/80 hover:text-white">
                         <CreditCard className="w-4 h-4 text-white/50" />
-                        <span className="text-sm font-medium flex-1">{t.billing}</span>
+                        <span className="text-sm font-medium flex-1">{tForLanguage(language, "billing")}</span>
                       </Link>
                       <Link href="/dashboard/support" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] text-white/80 hover:text-white">
                         <MessageCircle className="w-4 h-4 text-white/50" />
-                        <span className="text-sm font-medium flex-1">{t.support}</span>
+                        <span className="text-sm font-medium flex-1">{tForLanguage(language, "support")}</span>
                       </Link>
                     </div>
 
                     <div className="p-3 border-b border-white/[0.07] space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-white/50">{t.theme}</span>
-                        <select value={theme} onChange={(e) => setTheme(e.target.value)} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs">
+                        <span className="text-xs text-white/50">{tForLanguage(language, "theme")}</span>
+                        <select value={theme} onChange={(e) => setTheme(e.target.value)} className="bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
                           <option value="light">Light</option>
                           <option value="dark">Dark</option>
                           <option value="system">System</option>
                         </select>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-white/50">{t.language}</span>
-                        <select value={language} onChange={(e) => setLanguage(e.target.value)} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs">
-                          <option value="en">English</option>
-                          <option value="hi">Hindi</option>
+                        <span className="text-xs text-white/50">{tForLanguage(language, "language")}</span>
+                        <select value={language} onChange={(e) => setLanguage(e.target.value)} className="bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
+                          {LANGUAGE_OPTIONS.map((lang) => (
+                            <option key={lang.code} value={lang.code}>{lang.label}</option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -489,7 +481,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         >
                           <LogOut className="w-4 h-4 text-red-400" />
                           <div className="flex-1 text-left">
-                            <span className="text-sm font-semibold text-red-400 block">Logout</span>
+                            <span className="text-sm font-semibold text-red-400 block">{tForLanguage(language, "logout")}</span>
                             <span className="text-[10px] text-white/40">Clear session and return home</span>
                           </div>
                         </button>

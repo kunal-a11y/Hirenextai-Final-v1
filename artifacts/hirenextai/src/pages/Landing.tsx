@@ -169,6 +169,20 @@ export default function Landing() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
+          <div className="w-full flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => setLocation("/dashboard/jobs")}
+              className="px-5 py-2.5 rounded-xl border border-indigo-500/40 bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 transition"
+            >
+              Continue as Job Seeker
+            </button>
+            <button
+              onClick={() => setLocation("/dashboard/recruiter")}
+              className="px-5 py-2.5 rounded-xl border border-purple-500/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 transition"
+            >
+              Continue as Recruiter
+            </button>
+          </div>
           <Link href="/register" className="btn-primary py-4 px-8 text-lg w-full sm:w-auto hover:shadow-[0_0_40px_rgba(99,102,241,0.5)] hover:scale-[1.03] transition-all duration-300">
             Start for Free
           </Link>

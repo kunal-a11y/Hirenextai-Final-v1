@@ -6,11 +6,15 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Logo } from "@/components/Logo";
+import { useSystemTheme } from "@/hooks/use-system-theme";
+import { useState } from "react";
 
 const adminNavItems = [
   { href: "/dashboard/admin", icon: LayoutDashboard, label: "Dashboard", exact: true },
   { href: "/dashboard/admin/users", icon: Users, label: "Users" },
   { href: "/dashboard/admin/tickets", icon: TicketCheck, label: "Tickets" },
+  { href: "/dashboard/admin/announcements", icon: Briefcase, label: "Announcements" },
+  { href: "/dashboard/admin/notifications", icon: BarChart3, label: "Notifications" },
   { href: "/dashboard/admin/credits", icon: Zap, label: "Credits" },
 ];
 
@@ -54,9 +58,12 @@ function AdminNavItem({
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
+  const [theme] = useState(localStorage.getItem("hirenext_theme") || "system");
+  useSystemTheme(theme);
 
   const initials = user?.name
-    ? user.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+    ? user.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
     : "A";
 
   return (
@@ -88,7 +95,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               {initials}
             </div>
             <button
-              onClick={logout}
+              onClick={async () => { await logout(); setLocation("/login"); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/40 hover:text-white hover:bg-white/5 transition-all"
             >
               <LogOut className="w-4 h-4" />

@@ -125,13 +125,13 @@ function ApplicantCard({
       </div>
 
       {/* Skills */}
-      {applicant.profile?.skills?.length > 0 && (
+      {(applicant.profile?.skills?.length ?? 0) > 0 && (
         <div className="flex flex-wrap gap-1 mt-3">
-          {applicant.profile.skills.slice(0, 5).map(s => (
+          {applicant.profile?.skills?.slice(0, 5).map((s) => (
             <span key={s} className="px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-xs text-white/50">{s}</span>
           ))}
-          {applicant.profile.skills.length > 5 && (
-            <span className="text-xs text-white/25">+{applicant.profile.skills.length - 5} more</span>
+          {(applicant.profile?.skills?.length ?? 0) > 5 && (
+            <span className="text-xs text-white/25">+{(applicant.profile?.skills?.length ?? 0) - 5} more</span>
           )}
         </div>
       )}
