@@ -101,19 +101,25 @@ export default function ProfileCompletionPopup({ profile, user, onCompleteNow, o
   };
 
   const busy = updateProfile.isPending;
+  const [collapsed, setCollapsed] = useState(false);
+  const [dismissed, setDismissed] = useState(sessionStorage.getItem("profile_panel_dismissed") === "1");
+
+  if (dismissed) return null;
 
   if (hiddenForSession) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-y-4 right-4 z-[70] flex items-start justify-end pointer-events-none" aria-live="polite">
+      <div className="fixed top-24 right-4 z-[9999] sm:right-6" aria-modal="true" role="dialog">
+        {/* Modal - slides in from bottom-right */}
         <motion.div
           key="modal"
-          initial={{ opacity: 0, x: 80 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 80 }}
-          transition={{ type: "spring", duration: 0.35, bounce: 0.08 }}
-          className={`pointer-events-auto relative w-[calc(100vw-2rem)] sm:w-[400px] max-h-[calc(100vh-2rem)] flex flex-col glass-panel border border-white/10 rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.6)] overflow-hidden ${minimized ? "h-20" : ""}`}
+          initial={{ opacity: 0, y: 40, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 40, scale: 0.96 }}
+          transition={{ type: "spring", duration: 0.45, bounce: 0.2 }}
+          className="relative w-[340px] sm:w-[400px] flex flex-col bg-[#0f0f14] border border-white/10 rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8)] overflow-hidden"
+          style={{ maxHeight: "80vh" }}
         >
           {/* Top gradient bar */}
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 z-10 shrink-0" />
@@ -126,7 +132,14 @@ export default function ProfileCompletionPopup({ profile, user, onCompleteNow, o
 
           {/* Close (X) button */}
           <button
-            onClick={handleCloseForSession}
+            onClick={() => setCollapsed(v => !v)}
+            className="absolute top-4 left-4 z-20 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all"
+            aria-label="Toggle panel"
+          >
+            <ChevronRight className={`w-4 h-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
+          </button>
+          <button
+            onClick={handleRemindLater}
             disabled={busy}
             className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all disabled:cursor-not-allowed"
             aria-label="Close"
@@ -143,7 +156,7 @@ export default function ProfileCompletionPopup({ profile, user, onCompleteNow, o
           </button>
 
           {/* Scrollable content */}
-          {!minimized && <div className="relative overflow-y-auto flex-1 p-6 pb-4">
+          {!collapsed && <div className="relative overflow-y-auto flex-1 p-6 sm:p-8 pb-4">
             {/* Header */}
             <div className="text-center mb-6 pr-6">
               <motion.div
@@ -236,7 +249,16 @@ export default function ProfileCompletionPopup({ profile, user, onCompleteNow, o
               <Clock className="w-3.5 h-3.5" />
               Remind me in 3 minutes
             </button>
-          </div>}
+            <button
+              onClick={() => {
+                sessionStorage.setItem("profile_panel_dismissed", "1");
+                setDismissed(true);
+              }}
+              className="w-full py-1.5 text-[11px] text-white/30 hover:text-white/60 transition-colors"
+            >
+              Dismiss for this session
+            </button>
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>
