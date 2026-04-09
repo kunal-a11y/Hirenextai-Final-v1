@@ -3,7 +3,7 @@ import {
   db, usersTable, sessionsTable, jobsTable, applicationsTable, supportTicketsTable,
   creditTransactionsTable, adminNotificationsTable,
 } from "@workspace/db";
-import { sql, desc, eq, gte, and } from "drizzle-orm";
+import { sql, desc, eq, gte, and, or, isNull } from "drizzle-orm";
 import { authenticate, isAdmin, AuthRequest } from "../middlewares/authenticate.js";
 import { sendAdminBroadcastEmail } from "../services/emailService.js";
 
@@ -304,14 +304,32 @@ router.patch("/ticket/:id/status", async (req: AuthRequest, res) => {
 });
 
 router.post("/notifications/send", async (req: AuthRequest, res) => {
-  const { title, message, audience = "all", channels = ["in_app"], recipientUserIds = [] } = req.body ?? {};
+  const {
+    title,
+    message,
+    audience = "all",
+    channels = ["in_app"],
+    recipientUserIds = [],
+    deliveryType = "instant",
+    expiresAt = null,
+  } = req.body ?? {};
   if (!title || !message) {
     res.status(400).json({ error: "Title and message are required." });
     return;
   }
-  const validAudience = ["all", "job_seeker", "recruiter", "selected"];
+  const validAudience = ["all", "job_seekers", "recruiters", "selected"];
   if (!validAudience.includes(audience)) {
     res.status(400).json({ error: "Invalid audience." });
+    return;
+  }
+  if (!["instant", "scheduled"].includes(String(deliveryType))) {
+    res.status(400).json({ error: "deliveryType must be instant or scheduled." });
+    return;
+  }
+
+  const parsedExpiresAt = expiresAt ? new Date(expiresAt) : null;
+  if (parsedExpiresAt && Number.isNaN(parsedExpiresAt.getTime())) {
+    res.status(400).json({ error: "Invalid expiresAt datetime." });
     return;
   }
 
@@ -332,8 +350,10 @@ router.post("/notifications/send", async (req: AuthRequest, res) => {
     const allUsers = await baseUsersQuery;
     const idSet = new Set(ids);
     users = allUsers.filter((u: BroadcastUser) => idSet.has(u.id));
+  } else if (audience === "job_seekers") {
+    users = await baseUsersQuery.where(eq(usersTable.role, "job_seeker"));
   } else {
-    users = await baseUsersQuery.where(eq(usersTable.role, audience));
+    users = await baseUsersQuery.where(eq(usersTable.role, "recruiter"));
   }
 
   if (users.length === 0) {
@@ -348,6 +368,8 @@ router.post("/notifications/send", async (req: AuthRequest, res) => {
       message: String(message).trim(),
       channel: channels.includes("email") ? "email+in_app" : "in_app",
       audience,
+      deliveryType,
+      expiresAt: parsedExpiresAt,
     }))
   );
 
@@ -359,7 +381,11 @@ router.post("/notifications/send", async (req: AuthRequest, res) => {
 });
 
 router.get("/notifications", async (_req: AuthRequest, res) => {
-  const rows = await db.select().from(adminNotificationsTable).orderBy(desc(adminNotificationsTable.createdAt));
+  const now = new Date();
+  const rows = await db.select()
+    .from(adminNotificationsTable)
+    .where(or(isNull(adminNotificationsTable.expiresAt), gte(adminNotificationsTable.expiresAt, now)))
+    .orderBy(desc(adminNotificationsTable.createdAt));
   res.json(rows);
 });
 

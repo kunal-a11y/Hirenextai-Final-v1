@@ -29,6 +29,13 @@ interface SubInfo {
     price: number;
   }>;
 }
+interface ApiEnvelope<T> { success?: boolean; data?: T }
+
+const FALLBACK_PLANS: SubInfo["plans"] = [
+  { key: "free", label: "Free", jobLimit: 3, boostCredits: 0, featuredCredits: 0, price: 0 },
+  { key: "pro", label: "Pro", jobLimit: 25, boostCredits: 10, featuredCredits: 3, price: 199 },
+  { key: "enterprise", label: "Enterprise", jobLimit: -1, boostCredits: 50, featuredCredits: 20, price: 2999 },
+];
 
 const PLAN_FEATURES: Record<string, string[]> = {
   free: [
@@ -107,7 +114,29 @@ export default function RecruiterSubscription() {
   const fetchSub = async () => {
     try {
       const res = await fetch(`${API}/recruiter/subscription`, { headers: authHeader });
-      if (res.ok) setInfo(await res.json());
+      if (res.ok) {
+        const payload = await res.json() as SubInfo | ApiEnvelope<SubInfo>;
+        const data = (payload as ApiEnvelope<SubInfo>).data ?? (payload as SubInfo);
+        setInfo({
+          ...data,
+          plans: (data?.plans?.length ? data.plans : FALLBACK_PLANS),
+        });
+      } else {
+        setInfo({
+          recruiterPlan: "free",
+          planLabel: "Free",
+          jobLimit: 3,
+          boostCreditsTotal: 0,
+          featuredCreditsTotal: 0,
+          jobBoostCredits: 0,
+          featuredJobsCredits: 0,
+          planValidTill: null,
+          activeJobs: 0,
+          boostedJobs: 0,
+          featuredJobs: 0,
+          plans: FALLBACK_PLANS,
+        });
+      }
     } catch {}
   };
 

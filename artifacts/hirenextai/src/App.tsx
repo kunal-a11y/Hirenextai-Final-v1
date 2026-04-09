@@ -215,6 +215,19 @@ function DashboardIndex() {
   )
 }
 
+function DemoEntry({ role }: { role: "job_seeker" | "recruiter" }) {
+  const { enableDemo } = useDemoStore();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    localStorage.removeItem("hirenext_token");
+    enableDemo();
+    setLocation(role === "recruiter" ? "/dashboard/recruiter" : "/dashboard/jobs");
+  }, [enableDemo, role, setLocation]);
+
+  return null;
+}
+
 function ScrollToTop() {
   const [pathname] = useLocation();
   useLayoutEffect(() => {
@@ -239,6 +252,8 @@ function Router() {
       <Route path="/login" component={() => <PublicRoute component={Auth} />} />
       <Route path="/register" component={() => <PublicRoute component={Auth} />} />
       <Route path="/login-success" component={LoginSuccess} />
+      <Route path="/demo/job-seeker" component={() => <DemoEntry role="job_seeker" />} />
+      <Route path="/demo/recruiter" component={() => <DemoEntry role="recruiter" />} />
       <Route path="/dashboard" component={DashboardIndex} />
       <Route path="/dashboard/jobs" component={JobsWithRecruiterRedirect} />
       <Route path="/dashboard/applications" component={() => <ProtectedRoute component={Applications} />} />

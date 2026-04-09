@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDemoStore } from "@/store/demo";
 import {
   Loader2, Mail, Lock, User, Phone,
-  ArrowRight, ChevronDown, RefreshCw, Sparkles, Briefcase, Building2
+  ArrowRight, ChevronDown, RefreshCw, Sparkles
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,7 +12,6 @@ import { motion, AnimatePresence } from "framer-motion";
 type Mode = "signin" | "signup";
 type EmailStep = "idle" | "form";
 type PhoneStep = "idle" | "enter_phone" | "enter_otp";
-type Role = "job_seeker" | "recruiter";
 
 function InputRow({
   icon: Icon,
@@ -61,7 +60,6 @@ export default function Auth() {
   const [mode, setMode] = useState<Mode>("signin");
   const [emailStep, setEmailStep] = useState<EmailStep>("idle");
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("idle");
-  const [role, setRole] = useState<Role>("job_seeker");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -90,7 +88,6 @@ export default function Auth() {
     setMode(newMode);
     setEmailStep("idle");
     setPhoneStep("idle");
-    setRole("job_seeker");
     setError("");
     setName(""); setEmail(""); setPassword(""); setPhone(""); setOtp("");
   };
@@ -102,10 +99,7 @@ export default function Auth() {
       if (mode === "signin") {
         await login({ data: { email, password } });
       } else {
-        await register({ data: { name, email, password, role } as any });
-        if (role === "recruiter") {
-          setLocation("/dashboard/recruiter/setup");
-        }
+        await register({ data: { name, email, password } as any });
       }
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || "Something went wrong. Please try again.");
@@ -131,7 +125,7 @@ export default function Auth() {
           const res = await fetch(`${API}/auth/google`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ accessToken: tokenResponse.access_token, role }),
+            body: JSON.stringify({ accessToken: tokenResponse.access_token }),
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data?.message || "Google login failed");
@@ -159,7 +153,7 @@ export default function Auth() {
       const res = await fetch(`${API}/auth/phone/request-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, role }),
+        body: JSON.stringify({ phone }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Failed to send OTP.");
@@ -177,7 +171,7 @@ export default function Auth() {
       const res = await fetch(`${API}/auth/phone/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, otp, role }),
+        body: JSON.stringify({ phone, otp }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "OTP verification failed");
@@ -273,24 +267,6 @@ export default function Auth() {
             </AnimatePresence>
 
             <div className="space-y-3">
-
-              {/* Role selector for sign in/up context */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRole("job_seeker")}
-                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-xs font-semibold transition-all ${role === "job_seeker" ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-white/[0.03] border-white/10 text-white/40 hover:text-white/70"}`}
-                >
-                  <Briefcase className="w-3.5 h-3.5" /> Job Seeker
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("recruiter")}
-                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-xs font-semibold transition-all ${role === "recruiter" ? "bg-purple-500/15 border-purple-500/40 text-purple-400" : "bg-white/[0.03] border-white/10 text-white/40 hover:text-white/70"}`}
-                >
-                  <Building2 className="w-3.5 h-3.5" /> Recruiter
-                </button>
-              </div>
 
               {/* ── 1. Google ── */}
               <button
@@ -414,24 +390,7 @@ export default function Auth() {
 
                       {mode === "signup" && (
                         <>
-                          {/* Role selector */}
-                          <div className="grid grid-cols-2 gap-2 mb-1">
-                            <button
-                              type="button"
-                              onClick={() => setRole("job_seeker")}
-                              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-xs font-semibold transition-all ${role === "job_seeker" ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-white/[0.03] border-white/10 text-white/40 hover:text-white/70"}`}
-                            >
-                              <Briefcase className="w-3.5 h-3.5" /> Job Seeker
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setRole("recruiter")}
-                              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-xs font-semibold transition-all ${role === "recruiter" ? "bg-purple-500/15 border-purple-500/40 text-purple-400" : "bg-white/[0.03] border-white/10 text-white/40 hover:text-white/70"}`}
-                            >
-                              <Building2 className="w-3.5 h-3.5" /> Recruiter
-                            </button>
-                          </div>
-                          <InputRow icon={User} type="text" name="name" placeholder={role === "recruiter" ? "Your full name" : "Full name"} value={name} onChange={e => setName(e.target.value)} required autoFocus />
+                          <InputRow icon={User} type="text" name="name" placeholder="Full name" value={name} onChange={e => setName(e.target.value)} required autoFocus />
                         </>
                       )}
 
@@ -447,7 +406,7 @@ export default function Auth() {
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <>
-                            {mode === "signin" ? "Sign In" : role === "recruiter" ? "Create Recruiter Account" : "Create Account"}
+                            {mode === "signin" ? "Sign In" : "Create Account"}
                             <ArrowRight className="w-4 h-4" />
                           </>
                         )}

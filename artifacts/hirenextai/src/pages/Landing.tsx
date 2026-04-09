@@ -64,6 +64,7 @@ export default function Landing() {
   const { enableDemo } = useDemoStore();
   const [, setLocation] = useLocation();
   const [demoLoading, setDemoLoading] = useState(false);
+  const [showDemoRoleModal, setShowDemoRoleModal] = useState(false);
 
   const typedText = useTypingText(
     ["Smarter with AI", "Faster with AI", "Smarter — Not Harder"],
@@ -71,10 +72,10 @@ export default function Landing() {
     2200
   );
 
-  const handleDemo = () => {
+  const handleDemoLaunch = (role: "job_seeker" | "recruiter") => {
     setDemoLoading(true);
     enableDemo();
-    setLocation("/dashboard/jobs");
+    setLocation(role === "recruiter" ? "/demo/recruiter" : "/demo/job-seeker");
   };
 
   const featureCards = [
@@ -169,25 +170,11 @@ export default function Landing() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          <div className="w-full flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => setLocation("/dashboard/jobs")}
-              className="px-5 py-2.5 rounded-xl border border-indigo-500/40 bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 transition"
-            >
-              Continue as Job Seeker
-            </button>
-            <button
-              onClick={() => setLocation("/dashboard/recruiter")}
-              className="px-5 py-2.5 rounded-xl border border-purple-500/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 transition"
-            >
-              Continue as Recruiter
-            </button>
-          </div>
           <Link href="/register" className="btn-primary py-4 px-8 text-lg w-full sm:w-auto hover:shadow-[0_0_40px_rgba(99,102,241,0.5)] hover:scale-[1.03] transition-all duration-300">
             Start for Free
           </Link>
           <button
-            onClick={handleDemo}
+            onClick={() => setShowDemoRoleModal(true)}
             disabled={demoLoading}
             className="btn-secondary py-4 px-8 text-lg w-full sm:w-auto flex items-center justify-center gap-2 disabled:opacity-60 hover:bg-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.06)] transition-all duration-300"
           >
@@ -223,6 +210,24 @@ export default function Landing() {
           <ChevronDown className="scroll-bounce w-5 h-5 text-white/25" />
         </motion.div>
       </section>
+
+      {showDemoRoleModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setShowDemoRoleModal(false)} />
+          <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#111124] p-6">
+            <h3 className="text-xl font-semibold mb-2">Choose your live demo</h3>
+            <p className="text-sm text-white/60 mb-5">Explore the product without logging in.</p>
+            <div className="grid grid-cols-1 gap-3">
+              <button onClick={() => handleDemoLaunch("job_seeker")} className="px-4 py-3 rounded-xl border border-indigo-500/40 bg-indigo-500/15 text-indigo-200 hover:bg-indigo-500/25 transition">
+                Continue as Job Seeker
+              </button>
+              <button onClick={() => handleDemoLaunch("recruiter")} className="px-4 py-3 rounded-xl border border-purple-500/40 bg-purple-500/15 text-purple-200 hover:bg-purple-500/25 transition">
+                Continue as Recruiter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Trust Badges ─────────────────────────────────────────────────────── */}
       <section className="relative z-10 py-8 px-6 max-w-4xl mx-auto">
