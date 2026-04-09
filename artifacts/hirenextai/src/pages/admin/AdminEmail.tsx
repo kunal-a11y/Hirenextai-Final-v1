@@ -22,6 +22,8 @@ export default function AdminEmail() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState("all");
+  const [deliveryType, setDeliveryType] = useState("instant");
+  const [expiresAt, setExpiresAt] = useState("");
   const [sending, setSending] = useState(false);
   const [users, setUsers] = useState<UserLite[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
@@ -59,17 +61,20 @@ export default function AdminEmail() {
           title,
           message,
           audience,
+          deliveryType,
+          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
           recipientUserIds: audience === "selected" ? selectedUsers : undefined,
           channels: ["in_app", "email"],
         }),
       });
-      if (!res.ok) throw new Error();
-      toast({ title: "Announcement sent" });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || payload?.message || "Failed to send announcement");
+      toast({ title: "Announcement sent", description: `Delivered to ${payload?.sent ?? 0} users.` });
       setTitle("");
       setMessage("");
       setSelectedUsers([]);
-    } catch {
-      toast({ title: "Failed to send announcement", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Failed to send announcement", description: error?.message ?? "Unknown error", variant: "destructive" });
     } finally {
       setSending(false);
     }
@@ -85,10 +90,20 @@ export default function AdminEmail() {
         <div className="flex items-center gap-3">
           <select value={audience} onChange={(e) => setAudience(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600">
             <option value="all">All users</option>
-            <option value="job_seeker">Job seekers</option>
-            <option value="recruiter">Recruiters</option>
+            <option value="job_seekers">Job seekers</option>
+            <option value="recruiters">Recruiters</option>
             <option value="selected">Selected users</option>
           </select>
+          <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600">
+            <option value="instant">Instant</option>
+            <option value="scheduled">Scheduled</option>
+          </select>
+          <input
+            type="datetime-local"
+            value={expiresAt}
+            onChange={(e) => setExpiresAt(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600"
+          />
           <button onClick={sendEmailAnnouncement} disabled={sending} className="px-4 py-2 rounded-lg bg-indigo-600 text-white disabled:opacity-50">{sending ? "Sending..." : "Send Announcement"}</button>
         </div>
 

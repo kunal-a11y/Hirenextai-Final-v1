@@ -5,6 +5,7 @@ import {
 } from "@workspace/db";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { authenticate, AuthRequest } from "../middlewares/authenticate.js";
+import { empty, ok, withErrorHandling } from "../lib/apiResponse.js";
 
 const router = Router();
 
@@ -42,6 +43,32 @@ function serializeJob(job: any) {
     featuredAt: job.featuredAt instanceof Date ? job.featuredAt.toISOString() : (job.featuredAt ?? null),
     featuredExpiry: job.featuredExpiry instanceof Date ? job.featuredExpiry.toISOString() : (job.featuredExpiry ?? null),
   };
+}
+
+async function getOrCreateRecruiterProfile(userId: number) {
+  const [existingProfile] = await db.select().from(recruiterProfilesTable)
+    .where(eq(recruiterProfilesTable.userId, userId)).limit(1);
+
+  if (existingProfile) return existingProfile;
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user) return null;
+
+  await db.insert(recruiterProfilesTable).values({
+    userId,
+    companyName: user.name ? `${user.name}'s Company` : "New Company",
+    recruiterName: user.name || "Recruiter",
+    workEmail: user.email,
+    setupCompleted: "false",
+    recruiterPlan: "free",
+    jobBoostCredits: 0,
+    featuredJobsCredits: 0,
+  });
+
+  const [newProfile] = await db.select().from(recruiterProfilesTable)
+    .where(eq(recruiterProfilesTable.userId, userId)).limit(1);
+
+  return newProfile ?? null;
 }
 
 /* ── GET /api/recruiter/overview ────────────────────────────────────────── */
@@ -82,18 +109,17 @@ router.get("/overview", authenticate, async (req: AuthRequest, res) => {
 });
 
 /* ── GET /api/recruiter/profile ─────────────────────────────────────────── */
-router.get("/profile", authenticate, async (req: AuthRequest, res) => {
+router.get("/profile", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
   if (!await requireRecruiter(req, res)) return;
 
-  const [profile] = await db.select().from(recruiterProfilesTable)
-    .where(eq(recruiterProfilesTable.userId, req.userId!)).limit(1);
+  const profile = await getOrCreateRecruiterProfile(req.userId!);
 
   if (!profile) {
-    res.json({ profile: null, setupCompleted: false });
+    empty(res, "Recruiter profile not found.");
     return;
   }
-  res.json({ profile, setupCompleted: profile.setupCompleted === "true" });
-});
+  ok(res, { profile, setupCompleted: profile.setupCompleted === "true" });
+}));
 
 /* ── POST /api/recruiter/profile ────────────────────────────────────────── */
 router.post("/profile", authenticate, async (req: AuthRequest, res) => {
@@ -147,11 +173,10 @@ router.post("/profile", authenticate, async (req: AuthRequest, res) => {
 });
 
 /* ── GET /api/recruiter/subscription ───────────────────────────────────── */
-router.get("/subscription", authenticate, async (req: AuthRequest, res) => {
+router.get("/subscription", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
   if (!await requireRecruiter(req, res)) return;
 
-  const [profile] = await db.select().from(recruiterProfilesTable)
-    .where(eq(recruiterProfilesTable.userId, req.userId!)).limit(1);
+  const profile = await getOrCreateRecruiterProfile(req.userId!);
 
   const planKey = (profile?.recruiterPlan ?? "free") as RecruiterPlanKey;
   const planCfg = RECRUITER_PLANS[planKey] ?? RECRUITER_PLANS.free;
@@ -179,7 +204,7 @@ router.get("/subscription", authenticate, async (req: AuthRequest, res) => {
       eq(jobsTable.isFeatured, true),
     ));
 
-  res.json({
+  ok(res, {
     recruiterPlan: planKey,
     planLabel: planCfg.label,
     jobLimit: planCfg.jobLimit,
@@ -196,7 +221,7 @@ router.get("/subscription", authenticate, async (req: AuthRequest, res) => {
       ...cfg,
     })),
   });
-});
+}));
 
 /* ── POST /api/recruiter/upgrade ────────────────────────────────────────── */
 router.post("/upgrade", authenticate, async (req: AuthRequest, res) => {
@@ -250,7 +275,7 @@ router.post("/upgrade", authenticate, async (req: AuthRequest, res) => {
 });
 
 /* ── POST /api/recruiter/featured-job ───────────────────────────────────── */
-router.post("/featured-job", authenticate, async (req: AuthRequest, res) => {
+router.post("/featured-job", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
   if (!await requireRecruiter(req, res)) return;
 
   const { jobId: rawJobId } = req.body;
@@ -260,10 +285,7 @@ router.post("/featured-job", authenticate, async (req: AuthRequest, res) => {
     return;
   }
 
-  const [rProfile] = await db.select({
-    id: recruiterProfilesTable.id,
-    featuredJobsCredits: recruiterProfilesTable.featuredJobsCredits,
-  }).from(recruiterProfilesTable).where(eq(recruiterProfilesTable.userId, req.userId!)).limit(1);
+  const rProfile = await getOrCreateRecruiterProfile(req.userId!);
 
   if (!rProfile) {
     res.status(400).json({ error: "Bad Request", message: "Recruiter profile not found" });
@@ -308,15 +330,15 @@ router.post("/featured-job", authenticate, async (req: AuthRequest, res) => {
     type: "featured",
   });
 
-  res.json({
+  ok(res, {
     success: true,
     job: serializeJob(updatedJob),
     featuredCreditsRemaining: (rProfile.featuredJobsCredits ?? 1) - 1,
   });
-});
+}));
 
 /* ── POST /api/recruiter/jobs ───────────────────────────────────────────── */
-router.post("/jobs", authenticate, async (req: AuthRequest, res) => {
+router.post("/jobs", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
   if (!await requireRecruiter(req, res)) return;
 
   const {
@@ -329,8 +351,7 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res) => {
     return;
   }
 
-  const [rProfile] = await db.select().from(recruiterProfilesTable)
-    .where(eq(recruiterProfilesTable.userId, req.userId!)).limit(1);
+  const rProfile = await getOrCreateRecruiterProfile(req.userId!);
 
   if (!rProfile) {
     res.status(400).json({ error: "Bad Request", message: "Complete your recruiter profile first" });
@@ -386,8 +407,8 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res) => {
     .orderBy(desc(jobsTable.id))
     .limit(1);
 
-  res.status(201).json(serializeJob(job));
-});
+  ok(res, serializeJob(job), 201);
+}));
 
 /* ── GET /api/recruiter/jobs ────────────────────────────────────────────── */
 router.get("/jobs", authenticate, async (req: AuthRequest, res) => {
@@ -457,15 +478,12 @@ router.delete("/jobs/:jobId", authenticate, async (req: AuthRequest, res) => {
 });
 
 /* ── PATCH /api/recruiter/jobs/:jobId/boost ─────────────────────────────── */
-router.patch("/jobs/:jobId/boost", authenticate, async (req: AuthRequest, res) => {
+router.patch("/jobs/:jobId/boost", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
   if (!await requireRecruiter(req, res)) return;
 
   const jobId = Number(req.params.jobId);
 
-  const [rProfile] = await db.select({
-    id: recruiterProfilesTable.id,
-    jobBoostCredits: recruiterProfilesTable.jobBoostCredits,
-  }).from(recruiterProfilesTable).where(eq(recruiterProfilesTable.userId, req.userId!)).limit(1);
+  const rProfile = await getOrCreateRecruiterProfile(req.userId!);
 
   if (!rProfile) {
     res.status(400).json({ error: "Bad Request", message: "Recruiter profile not found" });
@@ -510,8 +528,8 @@ router.patch("/jobs/:jobId/boost", authenticate, async (req: AuthRequest, res) =
     type: "boost",
   });
 
-  res.json({ success: true, job: serializeJob(updatedJob), creditsRemaining: (rProfile.jobBoostCredits ?? 1) - 1 });
-});
+  ok(res, { success: true, job: serializeJob(updatedJob), creditsRemaining: (rProfile.jobBoostCredits ?? 1) - 1 });
+}));
 
 /* ── GET /api/recruiter/jobs/:jobId/applicants ──────────────────────────── */
 router.get("/jobs/:jobId/applicants", authenticate, async (req: AuthRequest, res) => {
