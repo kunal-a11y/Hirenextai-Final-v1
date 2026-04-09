@@ -9,6 +9,7 @@ import {
 
 const POPUP_COOLDOWN_KEY = "profilePopupTime";
 const POPUP_COOLDOWN_MS = 3 * 60 * 1000; // 3 minutes
+const SESSION_HIDE_KEY = "profilePanelHiddenSession";
 
 export function shouldShowProfilePopup(
   profile: { completionPct: number; setupCompleted: boolean } | null | undefined,
@@ -66,6 +67,10 @@ const FIELDS = [
 export default function ProfileCompletionPopup({ profile, user, onCompleteNow, onRemindLater }: Props) {
   const [, setLocation] = useLocation();
   const updateProfile = useUpdateProfile();
+  const [minimized, setMinimized] = useState(false);
+  const [hiddenForSession, setHiddenForSession] = useState(
+    () => sessionStorage.getItem(SESSION_HIDE_KEY) === "true",
+  );
 
   const userSnap: UserSnap = user ?? {};
   const fields = FIELDS.map(f => ({ ...f, isDone: f.done(userSnap, profile) }));
@@ -89,11 +94,19 @@ export default function ProfileCompletionPopup({ profile, user, onCompleteNow, o
     onRemindLater();
   };
 
+  const handleCloseForSession = async () => {
+    await handleRemindLater();
+    sessionStorage.setItem(SESSION_HIDE_KEY, "true");
+    setHiddenForSession(true);
+  };
+
   const busy = updateProfile.isPending;
   const [collapsed, setCollapsed] = useState(false);
   const [dismissed, setDismissed] = useState(sessionStorage.getItem("profile_panel_dismissed") === "1");
 
   if (dismissed) return null;
+
+  if (hiddenForSession) return null;
 
   return (
     <AnimatePresence>
@@ -132,6 +145,14 @@ export default function ProfileCompletionPopup({ profile, user, onCompleteNow, o
             aria-label="Close"
           >
             <X className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setMinimized((v) => !v)}
+            className="absolute top-4 right-14 z-20 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/60"
+            aria-label={minimized ? "Expand" : "Minimize"}
+          >
+            <ChevronRight className={`w-4 h-4 transition-transform ${minimized ? "rotate-180" : "rotate-90"}`} />
           </button>
 
           {/* Scrollable content */}
@@ -205,7 +226,7 @@ export default function ProfileCompletionPopup({ profile, user, onCompleteNow, o
           </div>}
 
           {/* Sticky footer with action buttons */}
-          <div className="relative shrink-0 px-6 sm:px-8 pb-5 pt-3 border-t border-white/[0.06] bg-[#0f0f14]/95 backdrop-blur-sm space-y-2">
+          {!minimized && <div className="relative shrink-0 px-6 pb-5 pt-3 border-t border-white/[0.06] bg-[#0f0f14]/95 backdrop-blur-sm space-y-2">
             <motion.button
               onClick={handleCompleteNow}
               disabled={busy}

@@ -549,7 +549,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             </span>
                           )}
                         </span>
-                        <span className="flex-1">{item.label}</span>
+                        <span className="flex-1">{tForLanguage(language, item.label)}</span>
                         {showBadge && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 font-semibold">
                             {unreadAlerts} new

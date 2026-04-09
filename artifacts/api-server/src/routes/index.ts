@@ -13,6 +13,7 @@ import savedJobsRouter from "./saved-jobs.js";
 import dashboardRouter from "./dashboard.js";
 import supportRouter from "./support.js";
 import adminRouter from "./admin.js";
+import notificationsRouter from "./notifications.js";
 
 const router: IRouter = Router();
 
@@ -31,5 +32,6 @@ router.use("/saved-jobs", savedJobsRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/support", supportRouter);
 router.use("/admin", adminRouter);
+router.use("/notifications", notificationsRouter);
 
 export default router;

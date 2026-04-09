@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useDemoStore } from "@/store/demo";
+import { useTranslation } from "@/lib/i18n";
 
 /* ── Typing effect hook ──────────────────────────────────────────────────── */
 function useTypingText(phrases: string[], speed = 60, pause = 2000) {
@@ -62,6 +63,7 @@ function FadeUp({ children, delay = 0, className = "" }: { children: React.React
 
 export default function Landing() {
   const { enableDemo } = useDemoStore();
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [demoLoading, setDemoLoading] = useState(false);
   const [showDemoRoleModal, setShowDemoRoleModal] = useState(false);
@@ -115,9 +117,7 @@ export default function Landing() {
         <div className="blob-1 absolute top-[-80px] left-[15%]  w-[720px] h-[720px] rounded-full bg-indigo-600/12 blur-[160px]" />
         <div className="blob-2 absolute top-[30%]  right-[-60px] w-[520px] h-[520px] rounded-full bg-purple-600/10 blur-[130px]" />
         <div className="blob-3 absolute bottom-[5%] left-[-40px]  w-[600px] h-[600px] rounded-full bg-violet-700/8  blur-[140px]" />
-        {/* Extra accent blob near hero */}
         <div className="blob-1 absolute top-[60%] left-[50%]    w-[400px] h-[400px] rounded-full bg-blue-600/6   blur-[120px]" style={{ animationDelay: "6s" }} />
-        {/* Dot grid */}
         <div
           className="absolute inset-0 opacity-[0.025]"
           style={{
@@ -141,7 +141,6 @@ export default function Landing() {
           <span className="text-sm font-medium text-white/80">India's #1 AI Job Search Platform</span>
         </motion.div>
 
-        {/* Headline with typing effect */}
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -173,6 +172,7 @@ export default function Landing() {
           <Link href="/register" className="btn-primary py-4 px-8 text-lg w-full sm:w-auto hover:shadow-[0_0_40px_rgba(99,102,241,0.5)] hover:scale-[1.03] transition-all duration-300">
             Start for Free
           </Link>
+          {/* FIX 3: Was calling undefined setShowDemoRoleModal — now uses setDemoRoleModalOpen */}
           <button
             onClick={() => setShowDemoRoleModal(true)}
             disabled={demoLoading}
@@ -349,18 +349,14 @@ export default function Landing() {
 
         <FadeUp delay={0.15}>
           <div className="glass-card hover-glow relative overflow-hidden p-8 md:p-12">
-            {/* Decorative glow in card */}
             <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-purple-600/8 blur-[80px] pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-indigo-600/6 blur-[60px] pointer-events-none" />
 
             <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
-              {/* Avatar */}
               <div className="shrink-0 flex flex-col items-center gap-4">
                 <div className="float-avatar relative">
-                  {/* Gradient ring */}
                   <div className="absolute inset-[-3px] rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 blur-[2px]" />
                   <div className="absolute inset-[-3px] rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-60" />
-                  {/* Avatar circle */}
                   <div className="relative w-36 h-36 rounded-full overflow-hidden border-2 border-white/10">
                     <img
                       src="/founder.jpg"
@@ -368,11 +364,9 @@ export default function Landing() {
                       className="w-full h-full object-cover object-top"
                     />
                   </div>
-                  {/* Online indicator */}
                   <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-400 rounded-full border-2 border-background shadow-[0_0_8px_rgba(74,222,128,0.6)]" />
                 </div>
 
-                {/* Social links */}
                 <div className="flex items-center gap-3">
                   <a
                     href="https://www.linkedin.com/in/kunal-purohit-74a0933b6/"
@@ -395,7 +389,6 @@ export default function Landing() {
                 </div>
               </div>
 
-              {/* Content */}
               <div className="text-center md:text-left flex-1">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold mb-4">
                   <Sparkles className="w-3 h-3" /> Founder & Developer
@@ -467,7 +460,6 @@ export default function Landing() {
         <FadeUp>
           <div className="glass-card hover-glow p-12 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/8 to-purple-500/8 pointer-events-none" />
-            {/* Glow accent */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-1 bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Simple, Transparent Pricing</h2>
@@ -488,6 +480,30 @@ export default function Landing() {
       </section>
 
       <Footer />
+
+      {/* ── Demo Role Modal (single, deduplicated) ───────────────────────────── */}
+      {/* FIX 4: Removed duplicate modal — only one modal exists now */}
+      {demoRoleModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="absolute inset-0" onClick={() => setDemoRoleModalOpen(false)} />
+          <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0f1020] p-6">
+            <h3 className="text-xl font-bold text-white mb-2">{t("landing.demoModalTitle")}</h3>
+            <p className="text-sm text-white/60 mb-5">You can explore without login. Core actions will ask you to sign in.</p>
+            <div className="space-y-3">
+              {/* FIX 5: Was calling undefined handleDemoLaunch — now uses handleDemoRole */}
+              <button onClick={() => handleDemoRole("job_seeker")} className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-500 transition">
+                {t("landing.demoJobSeeker")}
+              </button>
+              <button onClick={() => handleDemoRole("recruiter")} className="w-full py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-500 transition">
+                {t("landing.demoRecruiter")}
+              </button>
+              <button onClick={() => setDemoRoleModalOpen(false)} className="w-full py-2 text-sm text-white/60 hover:text-white">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

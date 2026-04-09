@@ -2,12 +2,13 @@ import { create } from "zustand";
 
 interface DemoState {
   isDemoMode: boolean;
+  demoRole: "job_seeker" | "recruiter";
   showAuthModal: boolean;
   authModalFeature: string;
   demoStartTime: number | null;
   demoExpired: boolean;
 
-  enableDemo: () => void;
+  enableDemo: (role?: "job_seeker" | "recruiter") => void;
   disableDemo: () => void;
   openAuthModal: (feature: string) => void;
   closeAuthModal: () => void;
@@ -19,6 +20,7 @@ const DEMO_MODE_KEY = "hirenext_demo_mode";
 const DEMO_START_KEY = "demoStartTime";
 const DEMO_EXPIRED_KEY = "demoExpired";
 const DEMO_USER_KEY = "demoUser";
+const DEMO_ROLE_KEY = "demoRole";
 
 function readDemoStart(): number | null {
   const raw = localStorage.getItem(DEMO_START_KEY);
@@ -33,17 +35,19 @@ function readDemoExpired(): boolean {
 
 export const useDemoStore = create<DemoState>((set) => ({
   isDemoMode: localStorage.getItem(DEMO_MODE_KEY) === "true",
+  demoRole: (localStorage.getItem(DEMO_ROLE_KEY) as "job_seeker" | "recruiter" | null) ?? "job_seeker",
   showAuthModal: false,
   authModalFeature: "",
   demoStartTime: readDemoStart(),
   demoExpired: readDemoExpired(),
 
-  enableDemo: () => {
+  enableDemo: (role = "job_seeker") => {
     const now = Date.now();
     localStorage.setItem(DEMO_MODE_KEY, "true");
     localStorage.setItem(DEMO_START_KEY, String(now));
+    localStorage.setItem(DEMO_ROLE_KEY, role);
     localStorage.removeItem(DEMO_EXPIRED_KEY);
-    set({ isDemoMode: true, demoStartTime: now, demoExpired: false });
+    set({ isDemoMode: true, demoStartTime: now, demoExpired: false, demoRole: role });
   },
 
   disableDemo: () => {
@@ -51,7 +55,8 @@ export const useDemoStore = create<DemoState>((set) => ({
     localStorage.removeItem(DEMO_START_KEY);
     localStorage.removeItem(DEMO_EXPIRED_KEY);
     localStorage.removeItem(DEMO_USER_KEY);
-    set({ isDemoMode: false, showAuthModal: false, demoStartTime: null, demoExpired: false });
+    localStorage.removeItem(DEMO_ROLE_KEY);
+    set({ isDemoMode: false, showAuthModal: false, demoStartTime: null, demoExpired: false, demoRole: "job_seeker" });
   },
 
   expireDemo: () => {

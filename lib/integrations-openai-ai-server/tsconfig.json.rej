@@ -1,0 +1,15 @@
+diff a/lib/integrations-openai-ai-server/tsconfig.json b/lib/integrations-openai-ai-server/tsconfig.json	(rejected hunks)
+@@ -1,12 +1,11 @@
+ {
+   "extends": "../../tsconfig.base.json",
+   "compilerOptions": {
+     "composite": true,
+     "declarationMap": true,
+     "emitDeclarationOnly": true,
+     "outDir": "dist",
+-    "rootDir": "src",
+-    "types": ["node"]
++    "rootDir": "src"
+   },
+   "include": ["src"]
+ }

@@ -193,6 +193,12 @@ export default function RecruiterSubscription() {
   const usagePct = jobLimit === -1 ? 0 : Math.min(100, Math.round((usedJobs / jobLimit) * 100));
   const boostPct = boostTotal === 0 ? 0 : Math.min(100, Math.round((boostCredits / boostTotal) * 100));
   const featuredPct = featuredTotal === 0 ? 0 : Math.min(100, Math.round((featuredCredits / featuredTotal) * 100));
+  const plans = (info?.plans?.length
+    ? info.plans
+    : [
+        { key: "free", label: "Free", jobLimit: 3, boostCredits: 0, featuredCredits: 0, price: 0 },
+        { key: "pro", label: "Pro", jobLimit: 25, boostCredits: 10, featuredCredits: 3, price: 199 },
+      ]);
 
   return (
     <motion.div
@@ -298,7 +304,7 @@ export default function RecruiterSubscription() {
 
       {/* Plan cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {(info?.plans ?? []).map((plan, i) => {
+        {plans.map((plan, i) => {
           const colors = PLAN_COLORS[plan.key] ?? PLAN_COLORS.free;
           const isCurrent = plan.key === currentPlan;
           const isPopular = plan.key === "growth";

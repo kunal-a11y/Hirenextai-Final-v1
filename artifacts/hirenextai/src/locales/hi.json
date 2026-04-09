@@ -1,0 +1,92 @@
+{
+  "common": {
+    "account": "अकाउंट",
+    "billing": "बिलिंग",
+    "support": "सपोर्ट",
+    "theme": "थीम",
+    "language": "भाषा",
+    "logout": "लॉग आउट",
+    "dismiss": "बंद करें",
+    "notification": "सूचना",
+    "loading": "लोड हो रहा है..."
+  },
+  "nav": {
+    "features": "फीचर्स",
+    "pricing": "प्राइसिंग",
+    "signIn": "साइन इन",
+    "getStarted": "शुरू करें",
+    "goDashboard": "डैशबोर्ड"
+  },
+  "dashboard": {
+    "dashboard": "डैशबोर्ड",
+    "findJobs": "नौकरियां",
+    "applications": "आवेदन",
+    "savedJobs": "सेव्ड जॉब्स",
+    "aiTools": "एआई टूल्स",
+    "resumeStudio": "रेज़्यूमे स्टूडियो",
+    "jobAlerts": "जॉब अलर्ट",
+    "profile": "प्रोफाइल",
+    "recruiterDashboard": "रिक्रूटर डैशबोर्ड",
+    "postJob": "जॉब पोस्ट करें",
+    "boostJobs": "बूस्ट जॉब्स",
+    "analytics": "एनालिटिक्स",
+    "companyProfile": "कंपनी प्रोफाइल",
+    "subscription": "सब्सक्रिप्शन",
+    "admin": "एडमिन"
+  },
+  "landing": {
+    "heroBadge": "भारत का #1 एआई जॉब सर्च प्लेटफॉर्म",
+    "titlePrefix": "अपनी अगली नौकरी पाएँ",
+    "startFree": "मुफ़्त शुरू करें",
+    "viewDemo": "लाइव डेमो देखें",
+    "loadingDemo": "डेमो लोड हो रहा है...",
+    "demoModalTitle": "डेमो भूमिका चुनें",
+    "demoJobSeeker": "जॉब सीकर के रूप में जारी रखें",
+    "demoRecruiter": "रिक्रूटर के रूप में जारी रखें"
+  },
+  "auth": {
+    "signIn": "साइन इन",
+    "signUp": "साइन अप",
+    "welcomeBack": "वापसी पर स्वागत है",
+    "getStartedFree": "मुफ़्त शुरू करें",
+    "signinSubtitle": "अपने AI करियर असिस्टेंट में साइन इन करें",
+    "signupSubtitle": "आपकी AI जॉब खोज यहाँ से शुरू होती है",
+    "fullName": "पूरा नाम",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "phone": "फोन नंबर",
+    "otp": "OTP दर्ज करें",
+    "sendOtp": "OTP भेजें",
+    "verifyOtp": "OTP सत्यापित करें",
+    "orContinue": "या जारी रखें",
+    "continueWithEmail": "ईमेल से जारी रखें",
+    "continueWithPhone": "फोन से जारी रखें",
+    "google": "Google से जारी रखें"
+  },
+  "footer": {
+    "about": "अबाउट",
+    "support": "सपोर्ट",
+    "contact": "संपर्क",
+    "copyright": "© 2026 HirenextAI. सर्वाधिकार सुरक्षित।",
+    "brandDescription": "एआई आधारित जॉब सर्च प्लेटफॉर्म जो भारत के प्रोफेशनल्स को तेज़ और बेहतर तरीके से अगली भूमिका दिलाने में मदद करता है।",
+    "privacy": "प्राइवेसी पॉलिसी",
+    "terms": "टर्म्स ऑफ सर्विस",
+    "cookies": "कुकी पॉलिसी",
+    "refund": "रिफंड पॉलिसी"
+  },
+  "admin": {
+    "announcements": "घोषणाएं",
+    "title": "शीर्षक",
+    "message": "संदेश",
+    "allUsers": "सभी यूजर्स",
+    "jobSeekers": "जॉब सीकर्स",
+    "recruiters": "रिक्रूटर्स",
+    "selectedUsers": "चयनित यूजर्स",
+    "sendEmail": "ईमेल भेजें",
+    "durationHours": "अवधि (घंटे)",
+    "sendAnnouncement": "घोषणा भेजें",
+    "sending": "भेजा जा रहा है...",
+    "popup": "पॉपअप",
+    "inAppNotification": "नोटिफिकेशन"
+  }
+}
