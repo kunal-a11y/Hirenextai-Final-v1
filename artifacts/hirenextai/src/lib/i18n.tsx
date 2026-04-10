@@ -1,4 +1,3 @@
-import { createContext, ReactNode, useContext, useMemo, useState } from "react";
 import en from "@/locales/en.json";
 import hi from "@/locales/hi.json";
 import bn from "@/locales/bn.json";
@@ -68,44 +67,4 @@ export function tForLanguage(language: string, legacyKey: TranslationKey): strin
   return getNestedValue(resources[safeLang] as Record<string, any>, path)
     ?? getNestedValue(resources.en as Record<string, any>, path)
     ?? legacyKey;
-}
-
-type I18nContextValue = {
-  language: string;
-  setLanguage: (lang: string) => void;
-  t: (key: string) => string;
-};
-
-const I18nContext = createContext<I18nContextValue | null>(null);
-
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<string>(() => localStorage.getItem("hirenext_lang") || "en");
-
-  const setLanguage = (lang: string) => {
-    const next = lang in resources ? lang : "en";
-    setLanguageState(next);
-    localStorage.setItem("hirenext_lang", next);
-    document.documentElement.lang = next;
-  };
-
-  const value = useMemo<I18nContextValue>(() => ({
-    language,
-    setLanguage,
-    t: (key: string) => {
-      const safeLang = (language in resources ? language : "en") as LangCode;
-      return getNestedValue(resources[safeLang] as Record<string, any>, key)
-        ?? getNestedValue(resources.en as Record<string, any>, key)
-        ?? key;
-    },
-  }), [language]);
-
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
-}
-
-export function useTranslation() {
-  const ctx = useContext(I18nContext);
-  if (!ctx) {
-    throw new Error("useTranslation must be used within I18nProvider");
-  }
-  return ctx;
 }
