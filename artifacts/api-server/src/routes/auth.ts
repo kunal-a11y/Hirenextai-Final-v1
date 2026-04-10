@@ -323,17 +323,23 @@ router.post("/phone/verify-otp", async (req, res) => {
   }
 });
 router.post("/password-reset", async (req, res) => {
-  const email = String(req.body?.email ?? "").trim().toLowerCase();
-  if (!email) {
-    res.status(400).json({ error: "Bad Request", message: "Email is required." });
-    return;
+  try {
+    const email = String(req.body?.email ?? "").trim().toLowerCase();
+    if (!email) {
+      res.status(400).json({ error: "Bad Request", message: "Email is required." });
+      return;
+    }
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    if (user) {
+      const resetUrl = `${process.env.APP_URL ?? "https://hirenextai.com"}/reset-password?email=${encodeURIComponent(email)}`;
+      await sendPasswordResetEmail(user.email, user.name, resetUrl);
+    }
+    res.json({ success: true, message: "If an account exists, a password reset email has been sent." });
+  } catch (err) {
+    console.error("[POST /auth/password-reset]", err);
+    res.status(500).json({ error: "Internal Server Error", message: "Failed to process password reset request." });
   }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
-  if (user) {
-    const resetUrl = `${process.env.APP_URL ?? "https://hirenextai.com"}/reset-password?email=${encodeURIComponent(email)}`;
-    await sendPasswordResetEmail(user.email, user.name, resetUrl);
-  }
-  res.json({ success: true, message: "If an account exists, a password reset email has been sent." });
 });
 
 export default router;

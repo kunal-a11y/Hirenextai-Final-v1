@@ -3,7 +3,7 @@ import {
   db, usersTable, sessionsTable, jobsTable, applicationsTable, supportTicketsTable,
   creditTransactionsTable, adminNotificationsTable,
 } from "@workspace/db";
-import { sql, desc, eq, gte, and } from "drizzle-orm";
+import { sql, desc, eq, gte, and, or, isNull } from "drizzle-orm";
 import { authenticate, isAdmin, AuthRequest } from "../middlewares/authenticate.js";
 import { sendAdminBroadcastEmail } from "../services/emailService.js";
 
@@ -388,7 +388,11 @@ router.post("/notifications/send", async (req: AuthRequest, res) => {
 });
 
 router.get("/notifications", async (_req: AuthRequest, res) => {
-  const rows = await db.select().from(adminNotificationsTable).orderBy(desc(adminNotificationsTable.createdAt));
+  const now = new Date();
+  const rows = await db.select()
+    .from(adminNotificationsTable)
+    .where(or(isNull(adminNotificationsTable.expiresAt), gte(adminNotificationsTable.expiresAt, now)))
+    .orderBy(desc(adminNotificationsTable.createdAt));
   res.json(rows);
 });
 
