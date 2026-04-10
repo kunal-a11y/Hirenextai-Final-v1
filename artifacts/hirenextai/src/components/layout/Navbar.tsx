@@ -4,12 +4,13 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Logo } from "@/components/Logo";
 import { useState } from "react";
-import { useTranslation } from "@/lib/i18n";
 
 export function Navbar() {
   const { isAuthenticated } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { t } = useTranslation();
+  const [location] = useLocation();
+
+  const currentPageName = location === "/" ? "" : location.replace("/", "").replace(/-/g, " ");
 
   return (
     <motion.nav
@@ -25,22 +26,22 @@ export function Navbar() {
 
         {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-8">
-          <Link href="/features" className="text-sm font-medium text-white/70 hover:text-white transition-colors">{t("nav.features")}</Link>
-          <Link href="/pricing" className="text-sm font-medium text-white/70 hover:text-white transition-colors">{t("nav.pricing")}</Link>
+          <Link href="/features" className="text-sm font-medium text-white/70 hover:text-white transition-colors">Features</Link>
+          <Link href="/pricing" className="text-sm font-medium text-white/70 hover:text-white transition-colors">Pricing</Link>
 
           <div className="h-6 w-px bg-white/10" />
 
           {isAuthenticated ? (
             <Link href="/dashboard" className="btn-primary py-2.5 px-5 text-sm">
-              {t("nav.goDashboard")}
+              Go to Dashboard
             </Link>
           ) : (
             <div className="flex items-center gap-4">
               <Link href="/login" className="text-sm font-medium text-white hover:text-primary transition-colors">
-                {t("nav.signIn")}
+                Sign In
               </Link>
               <Link href="/register" className="btn-primary py-2.5 px-5 text-sm hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all">
-                {t("nav.getStarted")}
+                Get Started
               </Link>
             </div>
           )}
@@ -66,18 +67,18 @@ export function Navbar() {
             transition={{ duration: 0.2 }}
             className="md:hidden border-t border-white/5 bg-background/95 backdrop-blur-xl px-6 py-5 space-y-3"
           >
-            <Link href="/features" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-white/70 hover:text-white py-2">{t("nav.features")}</Link>
-            <Link href="/pricing" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-white/70 hover:text-white py-2">{t("nav.pricing")}</Link>
+            <Link href="/features" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-white/70 hover:text-white py-2">Features</Link>
+            <Link href="/pricing" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-white/70 hover:text-white py-2">Pricing</Link>
             <div className="h-px bg-white/5" />
             {isAuthenticated ? (
               <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="block btn-primary py-2.5 px-5 text-sm text-center">
-                {t("nav.goDashboard")}
+                Go to Dashboard
               </Link>
             ) : (
               <>
-                <Link href="/login" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-white/70 hover:text-white py-2">{t("nav.signIn")}</Link>
+                <Link href="/login" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-white/70 hover:text-white py-2">Sign In</Link>
                 <Link href="/register" onClick={() => setMobileOpen(false)} className="block btn-primary py-2.5 px-5 text-sm text-center">
-                  {t("nav.getStarted")}
+                  Get Started
                 </Link>
               </>
             )}
