@@ -11,14 +11,10 @@ const VALID_CATEGORIES = new Set(["bug", "payment", "account", "general"]);
 const VALID_STATUSES = new Set(["open", "in_progress", "resolved"]);
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-router.post("/ticket", withErrorHandling(async (req, res) => {
+router.post("/ticket", async (req, res) => {
   const { name, email, subject, message, category = "general" } = req.body ?? {};
   if (!name || !email || !subject || !message) {
     res.status(400).json({ error: "Name, email, subject, and message are required." });
-    return;
-  }
-  if (!EMAIL_REGEX.test(String(email).trim().toLowerCase())) {
-    res.status(400).json({ error: "A valid email address is required." });
     return;
   }
   const normalizedCategory = String(category).toLowerCase();
@@ -44,10 +40,10 @@ router.post("/ticket", withErrorHandling(async (req, res) => {
     message: String(message).trim(),
   });
 
-  ok(res, { ticketId }, 201);
-}));
+  res.status(201).json({ success: true, ticketId });
+});
 
-router.get("/tickets", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
+router.get("/tickets", authenticate, async (req: AuthRequest, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
   const category = typeof req.query.category === "string" ? req.query.category : undefined;
   const conditions: any[] = [eq(supportTicketsTable.userId, req.userId!)];

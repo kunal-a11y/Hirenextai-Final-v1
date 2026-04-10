@@ -310,26 +310,32 @@ router.post("/notifications/send", async (req: AuthRequest, res) => {
     audience = "all",
     channels = ["in_app"],
     recipientUserIds = [],
-    deliveryType = "instant",
-    expiresAt = null,
+    deliveryType = "notification",
+    expiresAt,
   } = req.body ?? {};
-  if (!title || !message) {
+  const safeTitle = String(title ?? "").trim();
+  const safeMessage = String(message ?? "").trim();
+  if (!safeTitle || !safeMessage) {
     res.status(400).json({ error: "Title and message are required." });
     return;
   }
-  const validAudience = ["all", "job_seekers", "recruiters", "selected"];
+  const validAudience = ["all", "job_seeker", "recruiter", "selected"];
   if (!validAudience.includes(audience)) {
     res.status(400).json({ error: "Invalid audience." });
     return;
   }
-  if (!["instant", "scheduled"].includes(String(deliveryType))) {
-    res.status(400).json({ error: "deliveryType must be instant or scheduled." });
+  if (!["popup", "notification"].includes(deliveryType)) {
+    res.status(400).json({ error: "Invalid deliveryType. Use popup or notification." });
     return;
   }
-
-  const parsedExpiresAt = expiresAt ? new Date(expiresAt) : null;
-  if (parsedExpiresAt && Number.isNaN(parsedExpiresAt.getTime())) {
-    res.status(400).json({ error: "Invalid expiresAt datetime." });
+  const safeChannels = Array.isArray(channels) ? channels : ["in_app"];
+  if (!safeChannels.every((c) => ["in_app", "email"].includes(c))) {
+    res.status(400).json({ error: "Invalid channels. Use in_app and/or email." });
+    return;
+  }
+  const parsedExpiry = expiresAt ? new Date(expiresAt) : null;
+  if (parsedExpiry && Number.isNaN(parsedExpiry.getTime())) {
+    res.status(400).json({ error: "Invalid expiresAt date format." });
     return;
   }
 
@@ -350,10 +356,8 @@ router.post("/notifications/send", async (req: AuthRequest, res) => {
     const allUsers = await baseUsersQuery;
     const idSet = new Set(ids);
     users = allUsers.filter((u: BroadcastUser) => idSet.has(u.id));
-  } else if (audience === "job_seekers") {
-    users = await baseUsersQuery.where(eq(usersTable.role, "job_seeker"));
   } else {
-    users = await baseUsersQuery.where(eq(usersTable.role, "recruiter"));
+    users = await baseUsersQuery.where(eq(usersTable.role, audience));
   }
 
   if (users.length === 0) {
@@ -361,23 +365,26 @@ router.post("/notifications/send", async (req: AuthRequest, res) => {
     return;
   }
 
-  await db.insert(adminNotificationsTable).values(
-    users.map((u: BroadcastUser) => ({
-      userId: u.id,
-      title: String(title).trim(),
-      message: String(message).trim(),
-      channel: channels.includes("email") ? "email+in_app" : "in_app",
-      audience,
-      deliveryType,
-      expiresAt: parsedExpiresAt,
-    }))
-  );
-
-  if (channels.includes("email")) {
-    await Promise.all(users.map((u: BroadcastUser) => sendAdminBroadcastEmail(u.email, u.name, String(title).trim(), String(message).trim())));
+  try {
+    await db.insert(adminNotificationsTable).values(
+      users.map((u: BroadcastUser) => ({
+        userId: u.id,
+        title: safeTitle,
+        message: safeMessage,
+        channel: safeChannels.includes("email") ? `${deliveryType}+email` : deliveryType,
+        audience: parsedExpiry ? `${audience}|expires:${parsedExpiry.toISOString()}` : audience,
+      }))
+    );
+  } catch (error) {
+    res.status(500).json({ error: "Failed to store announcement." });
+    return;
   }
 
-  res.json({ success: true, sent: users.length });
+  if (safeChannels.includes("email")) {
+    await Promise.all(users.map((u: BroadcastUser) => sendAdminBroadcastEmail(u.email, u.name, safeTitle, safeMessage)));
+  }
+
+  res.json({ success: true, sent: users.length, deliveryType, expiresAt: parsedExpiry?.toISOString() ?? null });
 });
 
 router.get("/notifications", async (_req: AuthRequest, res) => {

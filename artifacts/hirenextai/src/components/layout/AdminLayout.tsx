@@ -59,7 +59,7 @@ function AdminNavItem({
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
-  const [theme] = useState(localStorage.getItem("hirenext_theme") || "system");
+  const [theme] = useState(localStorage.getItem("hirenext_theme") || "dark");
   useSystemTheme(theme);
 
   const initials = user?.name

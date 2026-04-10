@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/lib/i18n";
 
 const API = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -19,11 +20,13 @@ interface AdminUserApiResponse {
 export default function AdminEmail() {
   const { token } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState("all");
-  const [deliveryType, setDeliveryType] = useState("instant");
-  const [expiresAt, setExpiresAt] = useState("");
+  const [deliveryType, setDeliveryType] = useState<"popup" | "notification">("notification");
+  const [durationHours, setDurationHours] = useState("24");
+  const [sendEmail, setSendEmail] = useState(true);
   const [sending, setSending] = useState(false);
   const [users, setUsers] = useState<UserLite[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
@@ -54,6 +57,10 @@ export default function AdminEmail() {
 
     setSending(true);
     try {
+      const expiry = Number(durationHours);
+      const expiresAt = Number.isFinite(expiry) && expiry > 0
+        ? new Date(Date.now() + expiry * 60 * 60 * 1000).toISOString()
+        : undefined;
       const res = await fetch(`${API}/admin/notifications/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -62,19 +69,19 @@ export default function AdminEmail() {
           message,
           audience,
           deliveryType,
-          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+          expiresAt,
           recipientUserIds: audience === "selected" ? selectedUsers : undefined,
-          channels: ["in_app", "email"],
+          channels: sendEmail ? ["in_app", "email"] : ["in_app"],
         }),
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload?.error || payload?.message || "Failed to send announcement");
-      toast({ title: "Announcement sent", description: `Delivered to ${payload?.sent ?? 0} users.` });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to send announcement");
+      toast({ title: t("admin.announcements"), description: `${data?.sent ?? 0} recipients` });
       setTitle("");
       setMessage("");
       setSelectedUsers([]);
     } catch (error: any) {
-      toast({ title: "Failed to send announcement", description: error?.message ?? "Unknown error", variant: "destructive" });
+      toast({ title: "Failed to send announcement", description: error?.message || "Please try again.", variant: "destructive" });
     } finally {
       setSending(false);
     }
@@ -82,29 +89,33 @@ export default function AdminEmail() {
 
   return (
     <div className="space-y-4 max-w-4xl">
-      <h1 className="text-2xl font-bold text-white">Announcements</h1>
-      <div className="glass-card p-5 space-y-3">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600" />
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} placeholder="Message" className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600" />
+      <h1 className="text-2xl font-bold text-white">{t("admin.announcements")}</h1>
+      <div className="card space-y-3">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("admin.title")} className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600" />
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} placeholder={t("admin.message")} className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600" />
 
         <div className="flex items-center gap-3">
           <select value={audience} onChange={(e) => setAudience(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600">
-            <option value="all">All users</option>
-            <option value="job_seekers">Job seekers</option>
-            <option value="recruiters">Recruiters</option>
-            <option value="selected">Selected users</option>
+            <option value="all">{t("admin.allUsers")}</option>
+            <option value="job_seeker">{t("admin.jobSeekers")}</option>
+            <option value="recruiter">{t("admin.recruiters")}</option>
+            <option value="selected">{t("admin.selectedUsers")}</option>
           </select>
-          <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600">
-            <option value="instant">Instant</option>
-            <option value="scheduled">Scheduled</option>
+          <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as "popup" | "notification")} className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600">
+            <option value="notification">{t("admin.inAppNotification")}</option>
+            <option value="popup">{t("admin.popup")}</option>
           </select>
           <input
-            type="datetime-local"
-            value={expiresAt}
-            onChange={(e) => setExpiresAt(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600"
+            value={durationHours}
+            onChange={(e) => setDurationHours(e.target.value)}
+            placeholder={t("admin.durationHours")}
+            className="w-40 px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600"
           />
-          <button onClick={sendEmailAnnouncement} disabled={sending} className="px-4 py-2 rounded-lg bg-indigo-600 text-white disabled:opacity-50">{sending ? "Sending..." : "Send Announcement"}</button>
+          <label className="text-sm text-white/80 flex items-center gap-2">
+            <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />
+            {t("admin.sendEmail")}
+          </label>
+          <button onClick={sendEmailAnnouncement} disabled={sending} className="btn-primary px-4 py-2 text-sm disabled:opacity-50 transition-transform hover:scale-[1.02]">{sending ? t("admin.sending") : t("admin.sendAnnouncement")}</button>
         </div>
 
         {audience === "selected" && (

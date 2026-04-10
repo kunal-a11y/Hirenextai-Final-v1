@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "@/lib/i18n";
 
 type Mode = "signin" | "signup";
 type EmailStep = "idle" | "form";
@@ -70,6 +71,7 @@ export default function Auth() {
   const [error, setError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const [isGoogleReady, setIsGoogleReady] = useState(false);
+  const { t } = useTranslation();
   const API = import.meta.env.VITE_API_URL ?? "/api";
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
@@ -227,7 +229,7 @@ export default function Auth() {
                   mode === m ? "text-white" : "text-white/40 hover:text-white/70"
                 }`}
               >
-                {m === "signin" ? "Sign In" : "Sign Up"}
+                {m === "signin" ? t("auth.signIn") : t("auth.signUp")}
                 {mode === m && (
                   <motion.div
                     layoutId="auth-tab-indicator"
@@ -242,12 +244,12 @@ export default function Auth() {
             {/* Headline */}
             <div className="mb-7 text-center">
               <h1 className="text-[1.4rem] font-display font-bold text-white leading-tight">
-                {mode === "signin" ? "Welcome back" : "Get started free"}
+                {mode === "signin" ? t("auth.welcomeBack") : t("auth.getStartedFree")}
               </h1>
               <p className="text-white/40 text-sm mt-1.5">
                 {mode === "signin"
-                  ? "Sign in to your AI career assistant"
-                  : "Your AI-powered job search starts here"}
+                  ? t("auth.signinSubtitle")
+                  : t("auth.signupSubtitle")}
               </p>
             </div>
 
@@ -280,7 +282,7 @@ export default function Auth() {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Continue with Google
+                {t("auth.google")}
                 {googleLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-500" />}
               </button>
 
@@ -294,7 +296,7 @@ export default function Auth() {
                     className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border border-white/[0.12] bg-white/[0.04] text-white/80 text-sm font-medium hover:bg-white/[0.08] hover:border-white/[0.2] hover:text-white transition-all duration-200"
                   >
                     <Phone className="w-4 h-4 shrink-0 text-indigo-400" />
-                    Continue with Phone OTP
+                    {t("auth.continueWithPhone")}
                   </motion.button>
                 )}
 
@@ -312,7 +314,7 @@ export default function Auth() {
                     </div>
                     <InputRow icon={Phone} type="tel" name="phone" placeholder="+91 98765 43210" value={phone} onChange={e => setPhone(e.target.value)} required autoFocus />
                     <button type="submit" className="w-full py-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2">
-                      Send OTP <ArrowRight className="w-4 h-4" />
+                      {t("auth.sendOtp")} <ArrowRight className="w-4 h-4" />
                     </button>
                   </motion.form>
                 )}
@@ -337,7 +339,7 @@ export default function Auth() {
                       />
                     </div>
                     <button type="submit" className="w-full py-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-sm font-semibold transition-all duration-200">
-                      Verify OTP
+                      {t("auth.verifyOtp")}
                     </button>
                     <button type="button" onClick={() => { setPhoneStep("idle"); setError(""); }}
                       className="w-full text-center text-xs text-white/30 hover:text-white/50 transition-colors py-1">
@@ -367,7 +369,7 @@ export default function Auth() {
                       className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl border border-white/[0.12] bg-white/[0.04] text-white/60 text-sm font-medium hover:bg-white/[0.08] hover:border-white/[0.2] hover:text-white transition-all duration-200 group"
                     >
                       <Mail className="w-4 h-4 shrink-0 text-white/40 group-hover:text-indigo-400 transition-colors" />
-                      Continue with Email
+                      {t("auth.continueWithEmail")}
                       <ChevronDown className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
                     </motion.button>
                   ) : (
@@ -387,15 +389,12 @@ export default function Auth() {
                           {mode === "signin" ? "Sign in with email" : "Sign up with email"}
                         </span>
                       </div>
-
                       {mode === "signup" && (
-                        <>
-                          <InputRow icon={User} type="text" name="name" placeholder="Full name" value={name} onChange={e => setName(e.target.value)} required autoFocus />
-                        </>
+                        <InputRow icon={User} type="text" name="name" placeholder={t("auth.fullName")} value={name} onChange={e => setName(e.target.value)} required autoFocus />
                       )}
 
-                      <InputRow icon={Mail} type="email" name="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoFocus={mode === "signin"} />
-                      <InputRow icon={Lock} type="password" name="password" placeholder={mode === "signin" ? "Password" : "Create password (min. 6)"} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+                      <InputRow icon={Mail} type="email" name="email" placeholder={t("auth.email")} value={email} onChange={e => setEmail(e.target.value)} required autoFocus={mode === "signin"} />
+                      <InputRow icon={Lock} type="password" name="password" placeholder={t("auth.password")} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
 
                       <button
                         type="submit"
@@ -406,7 +405,7 @@ export default function Auth() {
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <>
-                            {mode === "signin" ? "Sign In" : "Create Account"}
+                            {mode === "signin" ? t("auth.signIn") : t("auth.signUp")}
                             <ArrowRight className="w-4 h-4" />
                           </>
                         )}

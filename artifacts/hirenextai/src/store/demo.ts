@@ -74,11 +74,11 @@ export const useDemoStore = create<DemoState>((set) => ({
   },
 
   openAuthModal: (feature: string) => {
-    localStorage.removeItem(DEMO_MODE_KEY);
-    localStorage.removeItem(DEMO_START_KEY);
-    localStorage.removeItem(DEMO_USER_KEY);
-    set({ isDemoMode: false, showAuthModal: false, authModalFeature: feature, demoStartTime: null });
-    window.location.assign("/login");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+      return;
+    }
+    set({ showAuthModal: true, authModalFeature: feature });
   },
 
   closeAuthModal: () => {

@@ -1,9 +1,19 @@
 import { useEffect, useState } from "react";
 
-export function useSystemTheme(theme: string) {
+export function useSystemTheme(themeOverride?: string) {
+  const [storedTheme, setStoredTheme] = useState<string>(
+    typeof window !== "undefined" ? localStorage.getItem("hirenext_theme") || "dark" : "dark",
+  );
   const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(
     typeof window !== "undefined" ? window.matchMedia("(prefers-color-scheme: dark)").matches : false,
   );
+
+  useEffect(() => {
+    if (themeOverride) return;
+    const onStorage = () => setStoredTheme(localStorage.getItem("hirenext_theme") || "dark");
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [themeOverride]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -14,7 +24,9 @@ export function useSystemTheme(theme: string) {
 
   useEffect(() => {
     const root = document.documentElement;
-    const dark = theme === "dark" || (theme === "system" && systemPrefersDark);
+    const activeTheme = themeOverride ?? storedTheme;
+    const dark = activeTheme === "dark" || (activeTheme === "system" && systemPrefersDark);
     root.classList.toggle("dark", dark);
-  }, [theme, systemPrefersDark]);
+    root.classList.toggle("light", !dark);
+  }, [themeOverride, storedTheme, systemPrefersDark]);
 }

@@ -15,42 +15,61 @@ import { useDemoStore } from "@/store/demo";
 import { useToast } from "@/hooks/use-toast";
 import { FloatingChat } from "@/components/FloatingChat";
 import { useSystemTheme } from "@/hooks/use-system-theme";
-import { LANGUAGE_OPTIONS, tForLanguage } from "@/lib/i18n";
+import { LANGUAGE_OPTIONS, TranslationKey, tForLanguage, useTranslation } from "@/lib/i18n";
 
-const PAGE_TITLES: Record<string, string> = {
-  jobs: "Find Jobs",
-  applications: "My Applications",
-  "ai-tools": "AI Tools",
-  chat: "AI Career Chat",
-  resume: "AI Resume Studio",
-  profile: "Profile",
-  subscription: "Subscription",
-  recruiter: "Recruiter Dashboard",
-  "post-job": "Post a Job",
-  "job-alerts": "Job Alerts",
-  "saved-jobs": "Saved Jobs",
+const PAGE_TITLES: Record<string, TranslationKey> = {
+  jobs: "find_jobs",
+  applications: "applications",
+  "ai-tools": "ai_tools",
+  chat: "ai_tools",
+  resume: "resume_studio",
+  profile: "profile",
+  subscription: "subscription",
+  recruiter: "recruiter_dashboard",
+  "post-job": "post_job",
+  "job-alerts": "job_alerts",
+  "saved-jobs": "saved_jobs",
 };
 
-const jobSeekerNavItems = [
-  { href: "/dashboard/jobs", icon: Briefcase, label: "Find Jobs" },
-  { href: "/dashboard/applications", icon: FileText, label: "Applications" },
-  { href: "/dashboard/saved-jobs", icon: Bookmark, label: "Saved Jobs" },
-  { href: "/dashboard/ai-tools", icon: Sparkles, label: "AI Tools" },
-  { href: "/dashboard/resume", icon: ScrollText, label: "Resume Studio" },
-  { href: "/dashboard/job-alerts", icon: Bell, label: "Job Alerts" },
-  { href: "/dashboard/profile", icon: UserIcon, label: "Profile" },
+type NavItem = {
+  href: string;
+  icon: any;
+  label: TranslationKey;
+  exact?: boolean;
+};
+
+const jobSeekerNavItems: NavItem[] = [
+  { href: "/dashboard/jobs", icon: Briefcase, label: "find_jobs" },
+  { href: "/dashboard/applications", icon: FileText, label: "applications" },
+  { href: "/dashboard/saved-jobs", icon: Bookmark, label: "saved_jobs" },
+  { href: "/dashboard/ai-tools", icon: Sparkles, label: "ai_tools" },
+  { href: "/dashboard/resume", icon: ScrollText, label: "resume_studio" },
+  { href: "/dashboard/job-alerts", icon: Bell, label: "job_alerts" },
+  { href: "/dashboard/profile", icon: UserIcon, label: "profile" },
 ];
 
-const recruiterNavItems = [
-  { href: "/dashboard/recruiter", icon: Building2, label: "Dashboard", exact: true },
-  { href: "/dashboard/recruiter/post-job", icon: Plus, label: "Post Job" },
-  { href: "/dashboard/recruiter/boost-jobs", icon: Zap, label: "Boost Jobs" },
-  { href: "/dashboard/recruiter/analytics", icon: BarChart3, label: "Analytics" },
-  { href: "/dashboard/recruiter/profile", icon: UserIcon, label: "Company Profile" },
-  { href: "/dashboard/subscription", icon: CreditCard, label: "Subscription" },
+const recruiterNavItems: NavItem[] = [
+  { href: "/dashboard/recruiter", icon: Building2, label: "dashboard", exact: true },
+  { href: "/dashboard/recruiter/post-job", icon: Plus, label: "post_job" },
+  { href: "/dashboard/recruiter/boost-jobs", icon: Zap, label: "boost_jobs" },
+  { href: "/dashboard/recruiter/analytics", icon: BarChart3, label: "analytics" },
+  { href: "/dashboard/recruiter/profile", icon: Users, label: "company_profile" },
+  { href: "/dashboard/subscription", icon: CreditCard, label: "subscription" },
 ];
 
 const API = import.meta.env.VITE_API_URL ?? "/api";
+type DashboardNotification = {
+  id: number;
+  title: string;
+  message: string;
+  channel: string;
+  isRead: boolean;
+  createdAt?: string;
+  audience?: string;
+};
+
+const DISMISSED_NOTIFICATION_KEY = "dismissedNotificationIds";
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { user, logout, token } = useAuth();
@@ -67,8 +86,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const remindTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [unreadAlerts, setUnreadAlerts] = useState(0);
-  const [language, setLanguage] = useState(localStorage.getItem("hirenext_lang") || "en");
-  const [theme, setTheme] = useState(localStorage.getItem("hirenext_theme") || "system");
+  const [adminNotifications, setAdminNotifications] = useState<DashboardNotification[]>([]);
+  const [activePopup, setActivePopup] = useState<DashboardNotification | null>(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const lastNotificationSoundRef = useRef<string>("");
+  const { language, setLanguage, t } = useTranslation();
+  const [languageSearch, setLanguageSearch] = useState("");
+  const [theme, setTheme] = useState(localStorage.getItem("hirenext_theme") || "dark");
+  const filteredLanguageOptions = LANGUAGE_OPTIONS.filter((lang) =>
+    lang.label.toLowerCase().includes(languageSearch.toLowerCase()),
+  );
 
   const { data: usage } = useGetAIUsage();
   const { data: subscription } = useGetSubscription();
@@ -78,6 +108,41 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   profileRef.current = profile;
 
   const lowCreditWarnedRef = useRef(false);
+  const getDismissedIds = () => {
+    try {
+      return JSON.parse(localStorage.getItem(DISMISSED_NOTIFICATION_KEY) || "[]") as number[];
+    } catch {
+      return [];
+    }
+  };
+  const dismissPopupLocally = (id: number) => {
+    const next = Array.from(new Set([...getDismissedIds(), id]));
+    localStorage.setItem(DISMISSED_NOTIFICATION_KEY, JSON.stringify(next));
+  };
+  const getExpiry = (n: DashboardNotification): Date | null => {
+    const raw = String(n.audience || "").split("|expires:")[1];
+    if (!raw) return null;
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+  const isExpired = (n: DashboardNotification) => {
+    const expiry = getExpiry(n);
+    return !!expiry && expiry.getTime() <= Date.now();
+  };
+  const playNotificationSound = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = 880;
+      gain.gain.value = 0.03;
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.08);
+    } catch {}
+  };
 
   // Poll unread alert count every 2 minutes (skip for demo/recruiter)
   const fetchUnreadAlerts = useCallback(async () => {
@@ -93,11 +158,37 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [token, isAnyDemoMode, isRecruiter]);
 
+  const fetchAdminNotifications = useCallback(async () => {
+    if (isAnyDemoMode || !token) return;
+    setNotificationsLoading(true);
+    try {
+      const listRes = await fetch(`${API}/notifications`, { headers: { Authorization: `Bearer ${token}` } });
+      if (listRes.ok) {
+        const list = ((await listRes.json()) as DashboardNotification[]).filter((n) => !isExpired(n));
+        setAdminNotifications(list);
+        const unread = list.filter((n) => !n.isRead).length;
+        setUnreadNotificationCount(unread);
+        const latestUnread = list.filter((n) => !n.isRead)[0];
+        if (latestUnread && lastNotificationSoundRef.current !== `${latestUnread.id}:${unread}`) {
+          lastNotificationSoundRef.current = `${latestUnread.id}:${unread}`;
+          playNotificationSound();
+        }
+        const dismissed = new Set(getDismissedIds());
+        const popup = list.find((n) => !n.isRead && n.channel.includes("popup") && !dismissed.has(n.id));
+        if (popup) setActivePopup(popup);
+      }
+    } catch {}
+    finally {
+      setNotificationsLoading(false);
+    }
+  }, [token, isAnyDemoMode]);
+
   useEffect(() => {
     fetchUnreadAlerts();
+    fetchAdminNotifications();
     const interval = setInterval(fetchUnreadAlerts, 2 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [fetchUnreadAlerts]);
+  }, [fetchUnreadAlerts, fetchAdminNotifications]);
 
   // Clear badge when user visits Job Alerts page
   useEffect(() => {
@@ -153,11 +244,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("hirenext_lang", language);
-    document.documentElement.lang = language;
-  }, [language]);
-
-  useEffect(() => {
     localStorage.setItem("hirenext_theme", theme);
   }, [theme]);
 
@@ -186,6 +272,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
       }
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
+        setNotificationOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -211,6 +300,48 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     disableDemo();
     toast({ title: "Logged out successfully", description: "See you next time!", duration: 3000 });
     setLocation("/login");
+  };
+
+  const dismissPopup = async () => {
+    if (!activePopup || !token) {
+      setActivePopup(null);
+      return;
+    }
+    dismissPopupLocally(activePopup.id);
+    try {
+      await fetch(`${API}/notifications/${activePopup.id}/read`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {}
+    setAdminNotifications((prev) => prev.map((n) => n.id === activePopup.id ? { ...n, isRead: true } : n));
+    setUnreadNotificationCount((prev) => Math.max(prev - 1, 0));
+    setActivePopup(null);
+  };
+
+  const markNotificationRead = async (id: number) => {
+    setAdminNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
+    setUnreadNotificationCount((prev) => Math.max(prev - 1, 0));
+    try {
+      await fetch(`${API}/notifications/${id}/read`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {}
+  };
+
+  const markAllNotificationsRead = async () => {
+    const unread = adminNotifications.filter((n) => !n.isRead).length;
+    setAdminNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadNotificationCount(0);
+    try {
+      await fetch(`${API}/notifications/read-all`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      setUnreadNotificationCount(unread);
+    }
   };
 
   const currentPage = location.split("/").pop() || "jobs";
@@ -248,6 +379,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
+      {activePopup && (
+        <div className="fixed top-20 right-4 z-[80] w-full max-w-sm glass-panel rounded-xl p-4 border border-primary/30 shadow-2xl">
+          <p className="text-xs text-primary uppercase tracking-wide mb-1">{t("common.notification")}</p>
+          <h3 className="text-sm font-semibold text-white">{activePopup.title}</h3>
+          <p className="text-sm text-white/70 mt-1">{activePopup.message}</p>
+          <div className="mt-3 flex justify-end">
+            <button onClick={dismissPopup} className="text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white">
+              {t("common.dismiss")}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-1 flex-col bg-background overflow-hidden min-h-0">
         {/* Top Navigation Bar */}
         <header className="sticky top-0 h-14 shrink-0 z-40 border-b border-white/[0.07] bg-[#0a0a14]/80 backdrop-blur-[12px]">
@@ -282,7 +426,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         </span>
                       )}
                     </span>
-                    <span className="hidden min-[900px]:inline">{item.label}</span>
+                    <span className="hidden min-[900px]:inline">{tForLanguage(language, item.label)}</span>
                   </Link>
                 );
               })}
@@ -319,6 +463,65 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     </span>
                   </span>
                 </Link>
+              )}
+
+              {!isAnyDemoMode && (
+                <div ref={notificationRef} className="relative">
+                  <button
+                    onClick={() => setNotificationOpen((v) => !v)}
+                    className="relative p-2 rounded-lg bg-card/80 border border-border text-foreground/70 hover:text-foreground hover:bg-card transition-colors"
+                    aria-label="Notifications"
+                  >
+                    <Bell className="w-4 h-4" />
+                    {unreadNotificationCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center font-bold">
+                        {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <AnimatePresence>
+                    {notificationOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto glass-panel rounded-xl border border-border shadow-2xl z-50"
+                      >
+                        <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+                          <p className="text-sm font-semibold text-foreground">{t("common.notification")}</p>
+                          <button onClick={markAllNotificationsRead} className="text-xs text-primary hover:opacity-80 transition-colors">
+                            Mark all read
+                          </button>
+                        </div>
+                        <div className="p-2 space-y-1">
+                          {notificationsLoading && (
+                            <div className="space-y-2 p-1">
+                              <div className="h-12 rounded-lg bg-white/10 animate-pulse" />
+                              <div className="h-12 rounded-lg bg-white/10 animate-pulse" />
+                            </div>
+                          )}
+                          {adminNotifications.length === 0 && !notificationsLoading && (
+                            <p className="text-xs text-muted-foreground px-2 py-3 text-center">No notifications</p>
+                          )}
+                          {adminNotifications.map((n) => (
+                            <button
+                              key={n.id}
+                              onClick={() => markNotificationRead(n.id)}
+                              className={`w-full text-left p-2 rounded-lg border transition-colors ${
+                                n.isRead ? "border-border bg-card/70 text-muted-foreground" : "border-primary/30 bg-primary/10 text-foreground"
+                              }`}
+                            >
+                              <p className="text-sm font-medium">{n.title}</p>
+                              <p className="text-xs mt-0.5 opacity-80">{n.message}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               )}
 
               {/* Plan badge */}
@@ -384,7 +587,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             }`}
                           >
                             <item.icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-white/50 group-hover:text-white/80"}`} />
-                            <span className="text-sm font-medium flex-1">{item.label}</span>
+                            <span className="text-sm font-medium flex-1">{tForLanguage(language, item.label)}</span>
                             {false && (
                               <span className="hidden">
                                 placeholder
@@ -433,11 +636,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs text-white/50">{tForLanguage(language, "language")}</span>
-                        <select value={language} onChange={(e) => setLanguage(e.target.value)} className="bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
-                          {LANGUAGE_OPTIONS.map((lang) => (
-                            <option key={lang.code} value={lang.code}>{lang.label}</option>
-                          ))}
-                        </select>
+                        <div className="w-40 space-y-1">
+                          <input
+                            value={languageSearch}
+                            onChange={(e) => setLanguageSearch(e.target.value)}
+                            placeholder="Search language"
+                            className="w-full bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs"
+                          />
+                          <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
+                            {filteredLanguageOptions.map((lang) => (
+                              <option key={lang.code} value={lang.code}>{lang.label}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
 
