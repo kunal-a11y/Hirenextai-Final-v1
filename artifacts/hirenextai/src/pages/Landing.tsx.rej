@@ -1,0 +1,66 @@
+diff a/artifacts/hirenextai/src/pages/Landing.tsx b/artifacts/hirenextai/src/pages/Landing.tsx	(rejected hunks)
+@@ -42,61 +42,62 @@ function useTypingText(phrases: string[], speed = 60, pause = 2000) {
+     return () => clearTimeout(timeout);
+   }, [charIdx, deleting, phraseIdx, phrases, speed, pause]);
+ 
+   return displayed;
+ }
+ 
+ /* ── Section fade-up wrapper ─────────────────────────────────────────────── */
+ function FadeUp({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
+   return (
+     <motion.div
+       initial={{ opacity: 0, y: 32 }}
+       whileInView={{ opacity: 1, y: 0 }}
+       viewport={{ once: true, margin: "-60px" }}
+       transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+       className={className}
+     >
+       {children}
+     </motion.div>
+   );
+ }
+ 
+ export default function Landing() {
+   const { enableDemo } = useDemoStore();
+   const [, setLocation] = useLocation();
+   const [demoLoading, setDemoLoading] = useState(false);
++  const [showDemoRoleModal, setShowDemoRoleModal] = useState(false);
+ 
+   const typedText = useTypingText(
+     ["Smarter with AI", "Faster with AI", "Smarter — Not Harder"],
+     65,
+     2200
+   );
+ 
+-  const handleDemo = () => {
++  const handleDemoLaunch = (role: "job_seeker" | "recruiter") => {
+     setDemoLoading(true);
+     enableDemo();
+-    setLocation("/dashboard/jobs");
++    setLocation(role === "recruiter" ? "/demo/recruiter" : "/demo/job-seeker");
+   };
+ 
+   const featureCards = [
+     { icon: BrainCircuit, title: "Smart Cover Letters",     desc: "Personalized, keyword-rich cover letters generated in seconds from any job description.", color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
+     { icon: Target,       title: "ATS Resume Optimizer",   desc: "Analyze and rewrite your resume to beat applicant tracking systems every time.",          color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
+     { icon: Briefcase,    title: "Intelligent Job Matching",desc: "Curated job recommendations matched to your skills, experience, and career goals.",        color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+     { icon: MessageSquare,title: "Interview Prep AI",      desc: "Practice with AI-generated role-specific questions and get instant feedback.",             color: "text-blue-400",    bg: "bg-blue-500/10 border-blue-500/20" },
+     { icon: FileSearch,   title: "Skill Match Score",      desc: "See exactly how well your profile matches any job before you apply.",                      color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/20" },
+     { icon: TrendingUp,   title: "Application Tracker",   desc: "Track every application from applied to offer in one intelligent dashboard.",               color: "text-cyan-400",    bg: "bg-cyan-500/10 border-cyan-500/20" },
+   ];
+ 
+   const testimonials = [
+     { name: "Riya Sharma", role: "BCA Graduate · Hired at TCS",    city: "Bangalore", rating: 5, quote: "I was applying for 2 months with zero responses. HirenextAI's cover letter tool changed everything — I got 4 interview calls in 2 weeks.", initials: "RS", color: "from-indigo-600 to-purple-700" },
+     { name: "Aman Verma",  role: "MCA Fresher · Hired at Wipro",   city: "Hyderabad", rating: 5, quote: "The job matching is insanely accurate. It knew I wanted Cyber Security roles before I even set filters. The AI tools saved me hours every day.",   initials: "AV", color: "from-purple-600 to-pink-700"  },
+     { name: "Priya Nair",  role: "Python Dev · Hired at Infosys",  city: "Pune",      rating: 5, quote: "Best ₹199 I ever spent. The resume optimizer helped me rewrite my entire experience section and I started getting callbacks immediately.",         initials: "PN", color: "from-emerald-600 to-teal-700" },
+   ];
+ 
+   const trustBadges = [
+     { icon: Shield, label: "100% Secure",  desc: "AES-256 encrypted" },
+     { icon: Lock,   label: "Privacy First",desc: "We never sell data" },
+     { icon: Users,  label: "50,000+ Users",desc: "Across India" },
+     { icon: Award,  label: "4.9/5 Rating", desc: "1,200+ reviews" },
+   ];
+ 
+   const howItWorks = [
