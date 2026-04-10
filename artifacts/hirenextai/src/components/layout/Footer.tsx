@@ -1,7 +1,6 @@
 import { Link } from "wouter";
 import { Logo } from "@/components/Logo";
 import { Linkedin, Instagram, Twitter, Youtube, Mail, Phone, MapPin } from "lucide-react";
-import { useTranslation } from "@/lib/i18n";
 
 const aboutLinks = [
   { label: "About HirenextAI", href: "/about" },
@@ -25,7 +24,6 @@ const socials = [
 ];
 
 export function Footer() {
-  const { t } = useTranslation();
   return (
     <footer className="bg-background border-t border-border/60 relative z-10 mt-12">
       <div className="max-w-7xl mx-auto px-6 pt-16 pb-8">
