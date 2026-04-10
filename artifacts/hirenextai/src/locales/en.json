@@ -1,0 +1,92 @@
+{
+  "common": {
+    "account": "Account",
+    "billing": "Billing",
+    "support": "Support",
+    "theme": "Theme",
+    "language": "Language",
+    "logout": "Logout",
+    "dismiss": "Dismiss",
+    "notification": "Notification",
+    "loading": "Loading..."
+  },
+  "nav": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "signIn": "Sign In",
+    "getStarted": "Get Started",
+    "goDashboard": "Go to Dashboard"
+  },
+  "dashboard": {
+    "dashboard": "Dashboard",
+    "findJobs": "Find Jobs",
+    "applications": "Applications",
+    "savedJobs": "Saved Jobs",
+    "aiTools": "AI Tools",
+    "resumeStudio": "Resume Studio",
+    "jobAlerts": "Job Alerts",
+    "profile": "Profile",
+    "recruiterDashboard": "Recruiter Dashboard",
+    "postJob": "Post Job",
+    "boostJobs": "Boost Jobs",
+    "analytics": "Analytics",
+    "companyProfile": "Company Profile",
+    "subscription": "Subscription",
+    "admin": "Admin"
+  },
+  "landing": {
+    "heroBadge": "India's #1 AI Job Search Platform",
+    "titlePrefix": "Find Your Next Job",
+    "startFree": "Start for Free",
+    "viewDemo": "View Live Demo",
+    "loadingDemo": "Loading Demo...",
+    "demoModalTitle": "Choose demo role",
+    "demoJobSeeker": "Continue as Job Seeker",
+    "demoRecruiter": "Continue as Recruiter"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "welcomeBack": "Welcome back",
+    "getStartedFree": "Get started free",
+    "signinSubtitle": "Sign in to your AI career assistant",
+    "signupSubtitle": "Your AI-powered job search starts here",
+    "fullName": "Full Name",
+    "email": "Email",
+    "password": "Password",
+    "phone": "Phone Number",
+    "otp": "Enter OTP",
+    "sendOtp": "Send OTP",
+    "verifyOtp": "Verify OTP",
+    "orContinue": "or continue with",
+    "continueWithEmail": "Continue with Email",
+    "continueWithPhone": "Continue with Phone",
+    "google": "Continue with Google"
+  },
+  "footer": {
+    "about": "About",
+    "support": "Support",
+    "contact": "Contact",
+    "copyright": "© 2026 HirenextAI. All rights reserved.",
+    "brandDescription": "The AI-powered job search platform helping professionals in India land their next role faster, smarter, and with more confidence.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "cookies": "Cookie Policy",
+    "refund": "Refund Policy"
+  },
+  "admin": {
+    "announcements": "Announcements",
+    "title": "Title",
+    "message": "Message",
+    "allUsers": "All users",
+    "jobSeekers": "Job seekers",
+    "recruiters": "Recruiters",
+    "selectedUsers": "Selected users",
+    "sendEmail": "Send email",
+    "durationHours": "Duration (hours)",
+    "sendAnnouncement": "Send Announcement",
+    "sending": "Sending...",
+    "popup": "Popup",
+    "inAppNotification": "Notification"
+  }
+}

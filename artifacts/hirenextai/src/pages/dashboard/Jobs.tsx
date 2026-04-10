@@ -17,7 +17,16 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import type { Job, UserProfile } from "@workspace/api-client-react";
+import type { Job, UserProfile, GetJobsType } from "@workspace/api-client-react";
+type JobsQueryParams = Parameters<typeof useGetJobs>[0] & {
+  keyword?: string;
+  fresher?: boolean;
+  experience?: string;
+  minSalary?: number;
+  maxSalary?: number;
+  sortBy?: string;
+  skills?: string;
+};
 
 /* ─── Static data ────────────────────────────────────────────────────────── */
 const CATEGORIES = [
@@ -410,23 +419,23 @@ export default function Jobs() {
   // then we re-sort client-side using computed match scores
   const backendSortBy = sortBy === "relevant" ? undefined : sortBy !== "latest" ? sortBy : undefined;
 
-  const { data, isLoading, refetch } = useGetJobs({
-    query: {
+  const jobsQueryParams: JobsQueryParams = {
       search: debouncedSearch || undefined,
       keyword: debouncedSearch || undefined,
       category: category || undefined,
       location: location || undefined,
       remote: remote || undefined,
-      type: type || undefined,
+      type: (type || undefined) as GetJobsType | undefined,
       fresher: fresher || undefined,
       experience: experience || undefined,
-      minSalary: minSalaryRupees as any,
-      maxSalary: maxSalaryRupees as any,
-      sortBy: backendSortBy as any,
-      skills: skillsFilter.length > 0 ? skillsFilter.join(",") as any : undefined,
-      limit: fetchLimit as any,
-    } as any,
-  });
+      minSalary: minSalaryRupees,
+      maxSalary: maxSalaryRupees,
+      sortBy: backendSortBy,
+      skills: skillsFilter.length > 0 ? skillsFilter.join(",") : undefined,
+      limit: fetchLimit,
+    };
+
+  const { data, isLoading, refetch } = useGetJobs(jobsQueryParams);
 
   const rawJobs = (data?.jobs ?? []) as LiveJobType[];
 
@@ -1790,4 +1799,3 @@ function JobDetailModal({ job, onClose, isSaved, onToggleSave }: {
     </>
   );
 }
-

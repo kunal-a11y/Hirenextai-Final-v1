@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useDemoStore } from "@/store/demo";
+import { useTranslation } from "@/lib/i18n";
 
 /* ── Typing effect hook ──────────────────────────────────────────────────── */
 function useTypingText(phrases: string[], speed = 60, pause = 2000) {
@@ -62,8 +63,10 @@ function FadeUp({ children, delay = 0, className = "" }: { children: React.React
 
 export default function Landing() {
   const { enableDemo } = useDemoStore();
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [demoLoading, setDemoLoading] = useState(false);
+  const [demoRoleModalOpen, setDemoRoleModalOpen] = useState(false);
 
   const typedText = useTypingText(
     ["Smarter with AI", "Faster with AI", "Smarter — Not Harder"],
@@ -71,10 +74,11 @@ export default function Landing() {
     2200
   );
 
-  const handleDemo = () => {
+  const handleDemoRole = (role: "job_seeker" | "recruiter") => {
     setDemoLoading(true);
-    enableDemo();
-    setLocation("/dashboard/jobs");
+    enableDemo(role);
+    setDemoRoleModalOpen(false);
+    setLocation(role === "recruiter" ? "/demo/recruiter" : "/demo/job-seeker");
   };
 
   const featureCards = [
@@ -137,7 +141,7 @@ export default function Landing() {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-md"
         >
           <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-white/80">India's #1 AI Job Search Platform</span>
+          <span className="text-sm font-medium text-white/80">{t("landing.heroBadge")}</span>
         </motion.div>
 
         {/* Headline with typing effect */}
@@ -147,7 +151,7 @@ export default function Landing() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="text-5xl md:text-7xl font-display font-extrabold tracking-tight mb-8 leading-tight"
         >
-          Find Your Next Job <br />
+          {t("landing.titlePrefix")} <br />
           <span className="text-gradient">
             {typedText}
             <span className="cursor-blink text-indigo-400 ml-0.5">|</span>
@@ -170,14 +174,14 @@ export default function Landing() {
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           <Link href="/register" className="btn-primary py-4 px-8 text-lg w-full sm:w-auto hover:shadow-[0_0_40px_rgba(99,102,241,0.5)] hover:scale-[1.03] transition-all duration-300">
-            Start for Free
+            {t("landing.startFree")}
           </Link>
           <button
-            onClick={handleDemo}
+            onClick={() => setDemoRoleModalOpen(true)}
             disabled={demoLoading}
             className="btn-secondary py-4 px-8 text-lg w-full sm:w-auto flex items-center justify-center gap-2 disabled:opacity-60 hover:bg-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.06)] transition-all duration-300"
           >
-            {demoLoading ? <><Zap className="w-5 h-5 animate-pulse" /> Loading Demo...</> : <><Zap className="w-5 h-5" /> View Live Demo</>}
+            {demoLoading ? <><Zap className="w-5 h-5 animate-pulse" /> {t("landing.loadingDemo")}</> : <><Zap className="w-5 h-5" /> {t("landing.viewDemo")}</>}
           </button>
         </motion.div>
 
@@ -469,6 +473,26 @@ export default function Landing() {
       </section>
 
       <Footer />
+
+      {demoRoleModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f1020] p-6">
+            <h3 className="text-xl font-bold text-white mb-2">{t("landing.demoModalTitle")}</h3>
+            <p className="text-sm text-white/60 mb-5">You can explore without login. Core actions will ask you to sign in.</p>
+            <div className="space-y-3">
+              <button onClick={() => handleDemoRole("job_seeker")} className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-500 transition">
+                {t("landing.demoJobSeeker")}
+              </button>
+              <button onClick={() => handleDemoRole("recruiter")} className="w-full py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-500 transition">
+                {t("landing.demoRecruiter")}
+              </button>
+              <button onClick={() => setDemoRoleModalOpen(false)} className="w-full py-2 text-sm text-white/60 hover:text-white">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
