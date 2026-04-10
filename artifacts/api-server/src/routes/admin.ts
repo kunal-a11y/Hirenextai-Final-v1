@@ -121,9 +121,9 @@ router.get("/users", async (_req: AuthRequest, res) => {
     .where(eq(creditTransactionsTable.monthYear, monthYear))
     .groupBy(creditTransactionsTable.userId);
 
-  const usageMap = new Map(creditRows.map(r => [r.userId, Number(r.used)]));
+  const usageMap = new Map<number, number>(creditRows.map((r) => [r.userId, Number(r.used)]));
 
-  const result = users.map(u => {
+  const result = users.map((u) => {
     const limit = PLAN_LIMITS[u.subscriptionPlan] ?? 20;
     const used = usageMap.get(u.id) ?? 0;
     const creditsLeft = limit === -1 ? -1 : Math.max(0, limit - used);
@@ -135,7 +135,7 @@ router.get("/users", async (_req: AuthRequest, res) => {
 
 // ─── Give / reset credits ─────────────────────────────────────────────────────
 router.patch("/user/:id/credits", async (req: AuthRequest, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
 
   const { amount, action } = req.body ?? {};
@@ -173,7 +173,7 @@ router.patch("/user/:id/credits", async (req: AuthRequest, res) => {
 
 // ─── Ban user ─────────────────────────────────────────────────────────────────
 router.patch("/user/:id/ban", async (req: AuthRequest, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
 
   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
@@ -185,7 +185,7 @@ router.patch("/user/:id/ban", async (req: AuthRequest, res) => {
 
 // ─── Activate user ────────────────────────────────────────────────────────────
 router.patch("/user/:id/activate", async (req: AuthRequest, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
 
   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
@@ -197,7 +197,7 @@ router.patch("/user/:id/activate", async (req: AuthRequest, res) => {
 
 // ─── Change role ──────────────────────────────────────────────────────────────
 router.patch("/user/:id/role", async (req: AuthRequest, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
 
   const { role } = req.body ?? {};
@@ -216,7 +216,7 @@ router.patch("/user/:id/role", async (req: AuthRequest, res) => {
 
 // ─── Delete user ──────────────────────────────────────────────────────────────
 router.delete("/user/:id", async (req: AuthRequest, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
 
   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
@@ -268,7 +268,7 @@ router.get("/tickets", async (req: AuthRequest, res) => {
 });
 
 router.patch("/ticket/:id/reply", async (req: AuthRequest, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ticket ID" }); return; }
 
   const { reply } = req.body ?? {};
@@ -292,7 +292,7 @@ router.patch("/ticket/:id/reply", async (req: AuthRequest, res) => {
 });
 
 router.patch("/ticket/:id/status", async (req: AuthRequest, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = Number(req.params.id);
   const status = String(req.body?.status ?? "");
   if (isNaN(id) || !["open", "in_progress", "resolved"].includes(status)) {
     res.status(400).json({ error: "Invalid ticket ID or status." });
@@ -304,43 +304,87 @@ router.patch("/ticket/:id/status", async (req: AuthRequest, res) => {
 });
 
 router.post("/notifications/send", async (req: AuthRequest, res) => {
-  const { title, message, audience = "all", channels = ["in_app"] } = req.body ?? {};
-  if (!title || !message) {
+  const {
+    title,
+    message,
+    audience = "all",
+    channels = ["in_app"],
+    recipientUserIds = [],
+    deliveryType = "notification",
+    expiresAt,
+  } = req.body ?? {};
+  const safeTitle = String(title ?? "").trim();
+  const safeMessage = String(message ?? "").trim();
+  if (!safeTitle || !safeMessage) {
     res.status(400).json({ error: "Title and message are required." });
     return;
   }
-  const validAudience = ["all", "job_seeker", "recruiter"];
+  const validAudience = ["all", "job_seeker", "recruiter", "selected"];
   if (!validAudience.includes(audience)) {
     res.status(400).json({ error: "Invalid audience." });
+    return;
+  }
+  if (!["popup", "notification"].includes(deliveryType)) {
+    res.status(400).json({ error: "Invalid deliveryType. Use popup or notification." });
+    return;
+  }
+  const safeChannels = Array.isArray(channels) ? channels : ["in_app"];
+  if (!safeChannels.every((c) => ["in_app", "email"].includes(c))) {
+    res.status(400).json({ error: "Invalid channels. Use in_app and/or email." });
+    return;
+  }
+  const parsedExpiry = expiresAt ? new Date(expiresAt) : null;
+  if (parsedExpiry && Number.isNaN(parsedExpiry.getTime())) {
+    res.status(400).json({ error: "Invalid expiresAt date format." });
     return;
   }
 
   const baseUsersQuery = db.select({ id: usersTable.id, email: usersTable.email, name: usersTable.name, role: usersTable.role })
     .from(usersTable);
-  const users = audience === "all"
-    ? await baseUsersQuery
-    : await baseUsersQuery.where(eq(usersTable.role, audience));
+  type BroadcastUser = { id: number; email: string; name: string; role: string };
+  let users: BroadcastUser[];
+  if (audience === "all") {
+    users = await baseUsersQuery;
+  } else if (audience === "selected") {
+    const ids = Array.isArray(recipientUserIds)
+      ? recipientUserIds.map((id: unknown) => Number(id)).filter((id: number) => Number.isInteger(id) && id > 0)
+      : [];
+    if (!ids.length) {
+      res.status(400).json({ error: "recipientUserIds is required when audience is selected." });
+      return;
+    }
+    const allUsers = await baseUsersQuery;
+    const idSet = new Set(ids);
+    users = allUsers.filter((u: BroadcastUser) => idSet.has(u.id));
+  } else {
+    users = await baseUsersQuery.where(eq(usersTable.role, audience));
+  }
 
   if (users.length === 0) {
     res.json({ success: true, sent: 0 });
     return;
   }
 
-  await db.insert(adminNotificationsTable).values(
-    users.map((u) => ({
-      userId: u.id,
-      title: String(title).trim(),
-      message: String(message).trim(),
-      channel: channels.includes("email") ? "email+in_app" : "in_app",
-      audience,
-    }))
-  );
-
-  if (channels.includes("email")) {
-    await Promise.all(users.map((u) => sendAdminBroadcastEmail(u.email, u.name, String(title).trim(), String(message).trim())));
+  try {
+    await db.insert(adminNotificationsTable).values(
+      users.map((u: BroadcastUser) => ({
+        userId: u.id,
+        title: safeTitle,
+        message: safeMessage,
+        channel: safeChannels.includes("email") ? `${deliveryType}+email` : deliveryType,
+        audience: parsedExpiry ? `${audience}|expires:${parsedExpiry.toISOString()}` : audience,
+      }))
+    );
+  } catch (error) {
+    res.status(500).json({ error: "Failed to store announcement." });
+    return;
   }
 
-  res.json({ success: true, sent: users.length });
+  if (safeChannels.includes("email")) {
+    await Promise.all(users.map((u: BroadcastUser) => sendAdminBroadcastEmail(u.email, u.name, safeTitle, safeMessage)));
+  }
+
+  res.json({ success: true, sent: users.length, deliveryType, expiresAt: parsedExpiry?.toISOString() ?? null });
 });
 
 router.get("/notifications", async (_req: AuthRequest, res) => {

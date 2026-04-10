@@ -1,11 +1,32 @@
+import crypto from "crypto";
 import { Router } from "express";
 import { db, usersTable, profilesTable, subscriptionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { hashPassword, comparePassword, generateToken } from "../lib/auth.js";
 import { authenticate, AuthRequest } from "../middlewares/authenticate.js";
 import { sendSignupEmail, sendPasswordResetEmail } from "../services/emailService.js";
+import { generateOtpCode, sendOtpSms } from "../services/smsService.js";
 
 const router = Router();
+
+
+type PhoneOtpRecord = {
+  code: string;
+  expiresAt: number;
+  attempts: number;
+};
+
+const phoneOtpStore = new Map<string, PhoneOtpRecord>();
+const OTP_EXPIRY_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+
+function normalizePhone(raw: unknown): string {
+  const cleaned = String(raw ?? "").replace(/[^\d+]/g, "").trim();
+  if (!cleaned) return "";
+  if (cleaned.startsWith("+")) return cleaned;
+  if (cleaned.length === 10) return `+91${cleaned}`;
+  return `+${cleaned}`;
+}
 
 function calcProfileCompletion(user: any, profile: any): number {
   let score = 0;
@@ -214,6 +235,93 @@ router.post("/google", async (req, res) => {
   }
 });
 
+
+router.post("/phone/request-otp", async (req, res) => {
+  try {
+    const phone = normalizePhone(req.body?.phone);
+    const role = req.body?.role === "recruiter" ? "recruiter" : "job_seeker";
+    if (!phone || phone.length < 11) {
+      res.status(400).json({ error: "Bad Request", message: "A valid phone number is required." });
+      return;
+    }
+
+    const code = generateOtpCode();
+    phoneOtpStore.set(phone, { code, expiresAt: Date.now() + OTP_EXPIRY_MS, attempts: 0 });
+    const smsResult = await sendOtpSms(phone, code);
+
+    // NOTE: otp is returned only when SMS provider is not configured to keep QA/dev functional.
+    res.json({ success: true, provider: smsResult.provider, otp: smsResult.delivered ? undefined : code, role });
+  } catch (err) {
+    console.error("[POST /auth/phone/request-otp]", err);
+    res.status(500).json({ error: "Internal Server Error", message: "Failed to send OTP." });
+  }
+});
+
+router.post("/phone/verify-otp", async (req, res) => {
+  try {
+    const phone = normalizePhone(req.body?.phone);
+    const code = String(req.body?.otp ?? "").trim();
+    const role = req.body?.role === "recruiter" ? "recruiter" : "job_seeker";
+
+    const record = phoneOtpStore.get(phone);
+    if (!record || Date.now() > record.expiresAt) {
+      phoneOtpStore.delete(phone);
+      res.status(400).json({ error: "Bad Request", message: "OTP expired. Please request a new code." });
+      return;
+    }
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      phoneOtpStore.delete(phone);
+      res.status(429).json({ error: "Too Many Requests", message: "Too many attempts. Request OTP again." });
+      return;
+    }
+    if (record.code !== code) {
+      record.attempts += 1;
+      phoneOtpStore.set(phone, record);
+      res.status(401).json({ error: "Unauthorized", message: "Invalid OTP." });
+      return;
+    }
+
+    phoneOtpStore.delete(phone);
+
+    let [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone)).limit(1);
+    if (!user) {
+      const randomHash = await hashPassword(`phone-otp-${crypto.randomUUID()}`);
+      const generatedEmail = `phone_${phone.replace(/[^\d]/g, "")}@hirenextai.local`;
+      await db.insert(usersTable).values({
+        name: `User ${phone.slice(-4)}`,
+        email: generatedEmail,
+        phone,
+        passwordHash: randomHash,
+        role,
+      });
+      [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone)).limit(1);
+      if (role === "job_seeker") {
+        await db.insert(profilesTable).values({ userId: user.id });
+      }
+      await db.insert(subscriptionsTable).values({ userId: user.id, plan: "free", status: "active" });
+    }
+
+    const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.userId, user.id)).limit(1);
+    const token = generateToken(user.id);
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone ?? null,
+        avatarUrl: user.avatarUrl ?? null,
+        subscriptionPlan: user.subscriptionPlan,
+        role: user.role,
+        profileCompletionPct: calcProfileCompletion(user, profile),
+        createdAt: user.createdAt.toISOString(),
+      },
+    });
+  } catch (err) {
+    console.error("[POST /auth/phone/verify-otp]", err);
+    res.status(500).json({ error: "Internal Server Error", message: "Phone login failed." });
+  }
+});
 router.post("/password-reset", async (req, res) => {
   const email = String(req.body?.email ?? "").trim().toLowerCase();
   if (!email) {

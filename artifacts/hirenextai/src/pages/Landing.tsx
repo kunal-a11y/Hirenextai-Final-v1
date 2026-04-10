@@ -64,6 +64,7 @@ export default function Landing() {
   const { enableDemo } = useDemoStore();
   const [, setLocation] = useLocation();
   const [demoLoading, setDemoLoading] = useState(false);
+  const [demoRoleModalOpen, setDemoRoleModalOpen] = useState(false);
 
   const typedText = useTypingText(
     ["Smarter with AI", "Faster with AI", "Smarter — Not Harder"],
@@ -71,10 +72,11 @@ export default function Landing() {
     2200
   );
 
-  const handleDemo = () => {
+  const handleDemoRole = (role: "job_seeker" | "recruiter") => {
     setDemoLoading(true);
-    enableDemo();
-    setLocation("/dashboard/jobs");
+    enableDemo(role);
+    setDemoRoleModalOpen(false);
+    setLocation(role === "recruiter" ? "/demo/recruiter" : "/demo/job-seeker");
   };
 
   const featureCards = [
@@ -173,7 +175,7 @@ export default function Landing() {
             Start for Free
           </Link>
           <button
-            onClick={handleDemo}
+            onClick={() => setDemoRoleModalOpen(true)}
             disabled={demoLoading}
             className="btn-secondary py-4 px-8 text-lg w-full sm:w-auto flex items-center justify-center gap-2 disabled:opacity-60 hover:bg-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.06)] transition-all duration-300"
           >
@@ -469,6 +471,26 @@ export default function Landing() {
       </section>
 
       <Footer />
+
+      {demoRoleModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f1020] p-6">
+            <h3 className="text-xl font-bold text-white mb-2">Choose your live demo</h3>
+            <p className="text-sm text-white/60 mb-5">You can explore without login. Core actions will ask you to sign in.</p>
+            <div className="space-y-3">
+              <button onClick={() => handleDemoRole("job_seeker")} className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-500 transition">
+                Continue as Job Seeker
+              </button>
+              <button onClick={() => handleDemoRole("recruiter")} className="w-full py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-500 transition">
+                Continue as Recruiter
+              </button>
+              <button onClick={() => setDemoRoleModalOpen(false)} className="w-full py-2 text-sm text-white/60 hover:text-white">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

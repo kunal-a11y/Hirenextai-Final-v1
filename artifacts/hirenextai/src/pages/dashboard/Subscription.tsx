@@ -10,8 +10,8 @@ import { motion } from "framer-motion";
 interface Feature {
   label: string;
   free: string | false;
-  pro: string | true;
-  premium: string | true;
+  pro: string | true | false;
+  premium: string | true | false;
 }
 
 const FEATURES: Feature[] = [

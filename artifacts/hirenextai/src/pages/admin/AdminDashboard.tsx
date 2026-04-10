@@ -164,7 +164,7 @@ export default function AdminDashboard() {
   };
 
   const filteredTickets = tickets.filter(t =>
-    statusFilter === "all" ? true : t.status === (statusFilter === "closed" ? "resolved" : statusFilter)
+    statusFilter === "all" ? true : t.status === statusFilter
   );
 
   const sendBroadcast = async () => {

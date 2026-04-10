@@ -172,9 +172,11 @@ router.post(
     if (!req.file) return res.status(400).json({ error: "No PDF file provided" });
 
     try {
-      const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
-      const parsed = await pdfParse(req.file.buffer);
+      const { PDFParse } = await import("pdf-parse");
+      const parser = new PDFParse({ data: req.file.buffer });
+      const parsed = await parser.getText();
       const resumeText = parsed.text?.slice(0, 8000) ?? "";
+      await parser.destroy();
 
       if (!resumeText.trim()) {
         return res.status(422).json({ error: "Could not extract text from PDF" });
