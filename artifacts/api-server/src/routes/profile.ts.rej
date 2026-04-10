@@ -1,0 +1,59 @@
+diff a/artifacts/api-server/src/routes/profile.ts b/artifacts/api-server/src/routes/profile.ts	(rejected hunks)
+@@ -150,53 +150,55 @@ router.patch("/", authenticate, async (req: AuthRequest, res) => {
+ 
+ /* ── GET /api/profile/skill-suggestions ────────────────────────────────────── */
+ const POPULAR_SKILLS = [
+   "JavaScript", "TypeScript", "React", "Node.js", "Python",
+   "Java", "C++", "SQL", "MongoDB", "PostgreSQL",
+   "HTML/CSS", "Git", "REST APIs", "GraphQL", "Docker",
+   "AWS", "Linux", "Express.js", "Next.js", "Vue.js",
+   "Machine Learning", "Data Analysis", "Excel", "Communication",
+   "Problem Solving", "Agile/Scrum", "Figma", "Tailwind CSS",
+   "Spring Boot", "Django",
+ ];
+ 
+ router.get("/skill-suggestions", authenticate, async (_req: AuthRequest, res) => {
+   res.json({ skills: POPULAR_SKILLS });
+ });
+ 
+ /* ── POST /api/profile/upload-resume ───────────────────────────────────────── */
+ router.post(
+   "/upload-resume",
+   authenticate,
+   upload.single("resume"),
+   async (req: AuthRequest, res) => {
+     if (!req.file) return res.status(400).json({ error: "No PDF file provided" });
+ 
+     try {
+-      const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+-      const parsed = await pdfParse(req.file.buffer);
++      const { PDFParse } = await import("pdf-parse");
++      const parser = new PDFParse({ data: req.file.buffer });
++      const parsed = await parser.getText();
+       const resumeText = parsed.text?.slice(0, 8000) ?? "";
++      await parser.destroy();
+ 
+       if (!resumeText.trim()) {
+         return res.status(422).json({ error: "Could not extract text from PDF" });
+       }
+ 
+       const completion = await openai.chat.completions.create({
+         model: "gpt-4o-mini",
+         temperature: 0.2,
+         response_format: { type: "json_object" },
+         messages: [
+           {
+             role: "system",
+             content: `You are a resume parser. Extract structured career data from the resume text.
+ Return ONLY valid JSON with this exact shape:
+ {
+   "skills": ["string"],
+   "education": [{ "institution": "string", "degree": "string", "field": "string", "startYear": number, "endYear": number | null, "current": boolean }],
+   "experience": [{ "company": "string", "title": "string", "location": null, "startDate": "YYYY-MM", "endDate": "YYYY-MM" | null, "current": boolean, "description": "string" }],
+   "careerGoal": "string"
+ }
+ Keep arrays empty if no relevant data. For careerGoal write a one-sentence career objective inferred from the resume.`,
+           },
+           { role: "user", content: resumeText },
+         ],
+       });

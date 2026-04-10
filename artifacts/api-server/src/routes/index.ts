@@ -27,6 +27,7 @@ router.use("/subscription", subscriptionRouter);
 router.use("/resume", resumeRouter);
 router.use("/recruiter", recruiterRouter);
 router.use("/alerts", alertsRouter);
+router.use("/notifications", alertsRouter);
 router.use("/saved-jobs", savedJobsRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/support", supportRouter);

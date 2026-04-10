@@ -1,0 +1,53 @@
+diff a/artifacts/hirenextai/src/hooks/use-auth.ts b/artifacts/hirenextai/src/hooks/use-auth.ts	(rejected hunks)
+@@ -43,50 +43,51 @@ function clearAllAuthStorage() {
+       }
+     });
+   } catch (_) {}
+ }
+ 
+ async function callServerLogout(token: string | null) {
+   if (!token) return;
+   try {
+     const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+     await fetch(`${base}/api/auth/logout`, {
+       method: "POST",
+       headers: { Authorization: `Bearer ${token}` },
+     });
+   } catch (_) {
+     // fire-and-forget — network errors must not block client logout
+   }
+ }
+ 
+ export function useAuth() {
+   const { token, setToken, clearStore } = useAuthStore();
+   const queryClient = useQueryClient();
+   const [, setLocation] = useLocation();
+ 
+   const { data: user, isLoading: isUserLoading, error } = useGetMe({
+     query: {
++      queryKey: getGetMeQueryKey(),
+       enabled: !!token,
+       retry: false,
+       staleTime: 30000,
+     }
+   });
+ 
+   const loginMutation = useLogin({
+     mutation: {
+       onSuccess: (data) => {
+         // Always clear any leftover demo keys so a real token is never masked by isDemoMode
+         useDemoStore.getState().disableDemo();
+         useDemoStore.getState().clearExpired();
+         setToken(data.token);
+         queryClient.setQueryData(getGetMeQueryKey(), data.user);
+         // Admin → admin panel; recruiter → recruiter dashboard; job seeker → jobs
+         const role = data.user.role;
+         setLocation(role === "admin" ? "/dashboard/admin" : role === "recruiter" ? "/dashboard/recruiter" : "/dashboard/jobs");
+       }
+     }
+   });
+ 
+   const registerMutation = useRegister({
+     mutation: {
+       onSuccess: (data) => {
+         // Same: clear demo state on register so fresh real session starts clean

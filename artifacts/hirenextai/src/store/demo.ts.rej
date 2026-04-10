@@ -1,0 +1,39 @@
+diff a/artifacts/hirenextai/src/store/demo.ts b/artifacts/hirenextai/src/store/demo.ts	(rejected hunks)
+@@ -47,32 +47,36 @@ export const useDemoStore = create<DemoState>((set) => ({
+   },
+ 
+   disableDemo: () => {
+     localStorage.removeItem(DEMO_MODE_KEY);
+     localStorage.removeItem(DEMO_START_KEY);
+     localStorage.removeItem(DEMO_EXPIRED_KEY);
+     localStorage.removeItem(DEMO_USER_KEY);
+     set({ isDemoMode: false, showAuthModal: false, demoStartTime: null, demoExpired: false });
+   },
+ 
+   expireDemo: () => {
+     localStorage.setItem(DEMO_EXPIRED_KEY, "true");
+     localStorage.removeItem(DEMO_MODE_KEY);
+     localStorage.removeItem(DEMO_USER_KEY);
+     set({ isDemoMode: false, demoExpired: true });
+   },
+ 
+   clearExpired: () => {
+     localStorage.removeItem(DEMO_EXPIRED_KEY);
+     localStorage.removeItem(DEMO_START_KEY);
+     localStorage.removeItem(DEMO_USER_KEY);
+     set({ demoExpired: false, demoStartTime: null });
+   },
+ 
+   openAuthModal: (feature: string) => {
+-    set({ showAuthModal: true, authModalFeature: feature });
++    localStorage.removeItem(DEMO_MODE_KEY);
++    localStorage.removeItem(DEMO_START_KEY);
++    localStorage.removeItem(DEMO_USER_KEY);
++    set({ isDemoMode: false, showAuthModal: false, authModalFeature: feature, demoStartTime: null });
++    window.location.assign("/login");
+   },
+ 
+   closeAuthModal: () => {
+     set({ showAuthModal: false, authModalFeature: "" });
+   },
+ }));

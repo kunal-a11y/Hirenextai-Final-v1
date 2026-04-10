@@ -1,0 +1,220 @@
+diff a/artifacts/api-server/src/routes/recruiter.ts b/artifacts/api-server/src/routes/recruiter.ts	(rejected hunks)
+@@ -382,107 +382,107 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res) => {
+   });
+ 
+   const [job] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.postedByUserId, req.userId!), eq(jobsTable.isDirectPost, true)))
+     .orderBy(desc(jobsTable.id))
+     .limit(1);
+ 
+   res.status(201).json(serializeJob(job));
+ });
+ 
+ /* ── GET /api/recruiter/jobs ────────────────────────────────────────────── */
+ router.get("/jobs", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+   const jobs = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.postedByUserId, req.userId!), eq(jobsTable.isDirectPost, true)))
+     .orderBy(desc(jobsTable.createdAt));
+ 
+   res.json(jobs.map(serializeJob));
+ });
+ 
+ /* ── PATCH /api/recruiter/jobs/:jobId ───────────────────────────────────── */
+ router.patch("/jobs/:jobId", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+-  const jobId = parseInt(req.params.jobId!, 10);
++  const jobId = Number(req.params.jobId);
+   const [existing] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
+   if (!existing) {
+     res.status(404).json({ error: "Not Found", message: "Job not found" });
+     return;
+   }
+ 
+   const {
+     title, location, isRemote, type, category, salaryMin, salaryMax,
+     description, requirements, skills, isFresher, experienceYears, applicationDeadline,
+   } = req.body;
+ 
+   await db.update(jobsTable)
+     .set({
+       ...(title && { title }),
+       ...(location && { location }),
+       isRemote: isRemote ?? existing.isRemote,
+       ...(type && { type }),
+       ...(category && { category }),
+       salaryMin: salaryMin !== undefined ? parseInt(salaryMin) : existing.salaryMin,
+       salaryMax: salaryMax !== undefined ? parseInt(salaryMax) : existing.salaryMax,
+       ...(description && { description }),
+       ...(requirements && { requirements }),
+       ...(skills && { skills }),
+       isFresher: isFresher ?? existing.isFresher,
+       experienceYears: experienceYears !== undefined ? parseInt(experienceYears) : existing.experienceYears,
+       applicationDeadline: applicationDeadline ? new Date(applicationDeadline) : existing.applicationDeadline,
+     })
+     .where(eq(jobsTable.id, jobId));
+ 
+   const [updated] = await db.select().from(jobsTable).where(eq(jobsTable.id, jobId)).limit(1);
+ 
+   res.json(serializeJob(updated));
+ });
+ 
+ /* ── DELETE /api/recruiter/jobs/:jobId ──────────────────────────────────── */
+ router.delete("/jobs/:jobId", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+-  const jobId = parseInt(req.params.jobId!, 10);
++  const jobId = Number(req.params.jobId);
+   const [existing] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
+   if (!existing) {
+     res.status(404).json({ error: "Not Found", message: "Job not found" });
+     return;
+   }
+ 
+   await db.delete(jobsTable).where(eq(jobsTable.id, jobId));
+   res.json({ success: true });
+ });
+ 
+ /* ── PATCH /api/recruiter/jobs/:jobId/boost ─────────────────────────────── */
+ router.patch("/jobs/:jobId/boost", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+-  const jobId = parseInt(req.params.jobId!, 10);
++  const jobId = Number(req.params.jobId);
+ 
+   const [rProfile] = await db.select({
+     id: recruiterProfilesTable.id,
+     jobBoostCredits: recruiterProfilesTable.jobBoostCredits,
+   }).from(recruiterProfilesTable).where(eq(recruiterProfilesTable.userId, req.userId!)).limit(1);
+ 
+   if (!rProfile) {
+     res.status(400).json({ error: "Bad Request", message: "Recruiter profile not found" });
+     return;
+   }
+ 
+   if ((rProfile.jobBoostCredits ?? 0) < 1) {
+     res.status(403).json({ error: "No boost credits", message: "You have no boost credits remaining. Upgrade your plan." });
+     return;
+   }
+ 
+   const [job] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
+ 
+   if (!job) {
+     res.status(404).json({ error: "Not Found", message: "Job not found" });
+     return;
+   }
+ 
+   if (job.isBoosted) {
+@@ -495,51 +495,51 @@ router.patch("/jobs/:jobId/boost", authenticate, async (req: AuthRequest, res) =
+ 
+   await db.update(jobsTable)
+     .set({ isBoosted: true, boostedAt: new Date(), boostExpiry })
+     .where(eq(jobsTable.id, jobId));
+ 
+   const [updatedJob] = await db.select().from(jobsTable).where(eq(jobsTable.id, jobId)).limit(1);
+ 
+   await db.update(recruiterProfilesTable)
+     .set({ jobBoostCredits: (rProfile.jobBoostCredits ?? 1) - 1, updatedAt: new Date() })
+     .where(eq(recruiterProfilesTable.id, rProfile.id));
+ 
+   await db.insert(jobBoostTransactionsTable).values({
+     userId: req.userId!,
+     jobId,
+     creditsUsed: 1,
+     type: "boost",
+   });
+ 
+   res.json({ success: true, job: serializeJob(updatedJob), creditsRemaining: (rProfile.jobBoostCredits ?? 1) - 1 });
+ });
+ 
+ /* ── GET /api/recruiter/jobs/:jobId/applicants ──────────────────────────── */
+ router.get("/jobs/:jobId/applicants", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+-  const jobId = parseInt(req.params.jobId!, 10);
++  const jobId = Number(req.params.jobId);
+ 
+   const [job] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
+   if (!job) {
+     res.status(404).json({ error: "Not Found", message: "Job not found" });
+     return;
+   }
+ 
+   const apps = await db
+     .select()
+     .from(applicationsTable)
+     .innerJoin(usersTable, eq(applicationsTable.userId, usersTable.id))
+     .where(eq(applicationsTable.jobId, jobId))
+     .orderBy(desc(applicationsTable.appliedAt));
+ 
+   const userIds = apps.map(a => a.users.id);
+   const profiles = userIds.length > 0
+     ? await db.select().from(profilesTable).where(inArray(profilesTable.userId, userIds))
+     : [];
+ 
+   const profileMap = new Map(profiles.map(p => [p.userId, p]));
+ 
+   res.json({
+     job: serializeJob(job),
+     applicants: apps.map(row => {
+@@ -554,52 +554,52 @@ router.get("/jobs/:jobId/applicants", authenticate, async (req: AuthRequest, res
+         status: row.applications.status,
+         recruiterStatus: row.applications.recruiterStatus ?? "pending",
+         coverLetter: row.applications.coverLetter ?? null,
+         resumeUrl: row.applications.resumeUrl ?? profile?.resumeUrl ?? null,
+         notes: row.applications.notes ?? null,
+         appliedAt: row.applications.appliedAt.toISOString(),
+         profile: profile ? {
+           skills: profile.skills,
+           education: profile.education,
+           experience: profile.experience,
+           headline: profile.headline,
+           preferredLocations: profile.preferredLocations,
+           isFresher: profile.isFresher,
+           degreeLevel: profile.degreeLevel,
+           specialization: profile.specialization,
+         } : null,
+       };
+     }),
+   });
+ });
+ 
+ /* ── PATCH /api/recruiter/jobs/:jobId/applicants/:appId ─────────────────── */
+ router.patch("/jobs/:jobId/applicants/:appId", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+-  const jobId = parseInt(req.params.jobId!, 10);
+-  const appId = parseInt(req.params.appId!, 10);
++  const jobId = Number(req.params.jobId);
++  const appId = Number(req.params.appId);
+   const { recruiterStatus, notes } = req.body;
+ 
+   if (!["pending", "shortlisted", "rejected"].includes(recruiterStatus)) {
+     res.status(400).json({ error: "Bad Request", message: "recruiterStatus must be pending, shortlisted, or rejected" });
+     return;
+   }
+ 
+   const [job] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
+   if (!job) {
+     res.status(404).json({ error: "Not Found", message: "Job not found" });
+     return;
+   }
+ 
+   const [existing] = await db.select({ id: applicationsTable.id })
+     .from(applicationsTable)
+     .where(and(eq(applicationsTable.id, appId), eq(applicationsTable.jobId, jobId)))
+     .limit(1);
+ 
+   if (!existing) {
+     res.status(404).json({ error: "Not Found", message: "Application not found" });
+     return;
+   }
+ 
+   await db.update(applicationsTable)

@@ -1,0 +1,54 @@
+diff a/artifacts/hirenextai/src/pages/admin/AdminDashboard.tsx b/artifacts/hirenextai/src/pages/admin/AdminDashboard.tsx	(rejected hunks)
+@@ -142,51 +142,51 @@ export default function AdminDashboard() {
+   const sendReply = async () => {
+     if (!selectedTicket || !reply.trim()) return;
+     setSending(true);
+     try {
+       const res = await fetch(`${API}/admin/ticket/${selectedTicket.id}/reply`, {
+         method: "PATCH",
+         headers: authHeaders(),
+         body: JSON.stringify({ reply }),
+       });
+       if (!res.ok) throw new Error();
+       toast({ title: "Reply sent", description: "Ticket marked as resolved." });
+       setTickets(prev =>
+         prev.map(t => t.id === selectedTicket.id ? { ...t, adminReply: reply, status: "resolved" } : t)
+       );
+       setSelectedTicket(null);
+       setReply("");
+       fetchAll();
+     } catch {
+       toast({ title: "Failed to send reply", variant: "destructive" });
+     } finally {
+       setSending(false);
+     }
+   };
+ 
+   const filteredTickets = tickets.filter(t =>
+-    statusFilter === "all" ? true : t.status === (statusFilter === "closed" ? "resolved" : statusFilter)
++    statusFilter === "all" ? true : t.status === statusFilter
+   );
+ 
+   const sendBroadcast = async () => {
+     if (!broadcast.title.trim() || !broadcast.message.trim()) return;
+     try {
+       const res = await fetch(`${API}/admin/notifications/send`, {
+         method: "POST",
+         headers: authHeaders(),
+         body: JSON.stringify({
+           title: broadcast.title,
+           message: broadcast.message,
+           audience: broadcast.audience,
+           channels: broadcast.email ? ["in_app", "email"] : ["in_app"],
+         }),
+       });
+       if (!res.ok) throw new Error();
+       toast({ title: "Broadcast sent successfully" });
+       setBroadcast({ title: "", message: "", audience: "all", email: true });
+     } catch {
+       toast({ title: "Failed to send broadcast", variant: "destructive" });
+     }
+   };
+ 
+   return (
+     <div className="space-y-8">
