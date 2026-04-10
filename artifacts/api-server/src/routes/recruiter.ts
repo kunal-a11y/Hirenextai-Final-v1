@@ -404,7 +404,7 @@ router.get("/jobs", authenticate, async (req: AuthRequest, res) => {
 router.patch("/jobs/:jobId", authenticate, async (req: AuthRequest, res) => {
   if (!await requireRecruiter(req, res)) return;
 
-  const jobId = parseInt(req.params.jobId!, 10);
+  const jobId = Number(req.params.jobId);
   const [existing] = await db.select().from(jobsTable)
     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
   if (!existing) {
@@ -444,7 +444,7 @@ router.patch("/jobs/:jobId", authenticate, async (req: AuthRequest, res) => {
 router.delete("/jobs/:jobId", authenticate, async (req: AuthRequest, res) => {
   if (!await requireRecruiter(req, res)) return;
 
-  const jobId = parseInt(req.params.jobId!, 10);
+  const jobId = Number(req.params.jobId);
   const [existing] = await db.select().from(jobsTable)
     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
   if (!existing) {
@@ -460,7 +460,7 @@ router.delete("/jobs/:jobId", authenticate, async (req: AuthRequest, res) => {
 router.patch("/jobs/:jobId/boost", authenticate, async (req: AuthRequest, res) => {
   if (!await requireRecruiter(req, res)) return;
 
-  const jobId = parseInt(req.params.jobId!, 10);
+  const jobId = Number(req.params.jobId);
 
   const [rProfile] = await db.select({
     id: recruiterProfilesTable.id,
@@ -517,7 +517,7 @@ router.patch("/jobs/:jobId/boost", authenticate, async (req: AuthRequest, res) =
 router.get("/jobs/:jobId/applicants", authenticate, async (req: AuthRequest, res) => {
   if (!await requireRecruiter(req, res)) return;
 
-  const jobId = parseInt(req.params.jobId!, 10);
+  const jobId = Number(req.params.jobId);
 
   const [job] = await db.select().from(jobsTable)
     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
@@ -576,8 +576,8 @@ router.get("/jobs/:jobId/applicants", authenticate, async (req: AuthRequest, res
 router.patch("/jobs/:jobId/applicants/:appId", authenticate, async (req: AuthRequest, res) => {
   if (!await requireRecruiter(req, res)) return;
 
-  const jobId = parseInt(req.params.jobId!, 10);
-  const appId = parseInt(req.params.appId!, 10);
+  const jobId = Number(req.params.jobId);
+  const appId = Number(req.params.appId);
   const { recruiterStatus, notes } = req.body;
 
   if (!["pending", "shortlisted", "rejected"].includes(recruiterStatus)) {
