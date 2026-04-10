@@ -72,7 +72,8 @@ export default function RecruiterProfile() {
       try {
         const res = await fetch(`${API}/recruiter/profile`, { headers: authHeader });
         if (res.ok) {
-          const data = await res.json();
+          const payload = await res.json();
+          const data = payload?.data ?? payload;
           if (data.profile) {
             const p = data.profile;
             setCompanyName(p.companyName ?? "");

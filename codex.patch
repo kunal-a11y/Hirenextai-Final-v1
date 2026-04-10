@@ -1,0 +1,3220 @@
+diff --git a/artifacts/api-server/src/routes/admin.ts b/artifacts/api-server/src/routes/admin.ts
+index be9faf53df92d4883dae0930638e8822129e4dbc..473a53154dcd2b93de4ed20da7d1ae2016cccee1 100644
+--- a/artifacts/api-server/src/routes/admin.ts
++++ b/artifacts/api-server/src/routes/admin.ts
+@@ -99,146 +99,146 @@ router.get("/growth", async (_req: AuthRequest, res) => {
+ router.get("/users", async (_req: AuthRequest, res) => {
+   const monthYear = currentMonthYear();
+ 
+   const users = await db
+     .select({
+       id: usersTable.id,
+       name: usersTable.name,
+       email: usersTable.email,
+       subscriptionPlan: usersTable.subscriptionPlan,
+       role: usersTable.role,
+       banned: usersTable.banned,
+       createdAt: usersTable.createdAt,
+     })
+     .from(usersTable)
+     .orderBy(desc(usersTable.createdAt));
+ 
+   const creditRows = await db
+     .select({
+       userId: creditTransactionsTable.userId,
+       used: sql<number>`coalesce(sum(${creditTransactionsTable.creditsUsed}),0)`,
+     })
+     .from(creditTransactionsTable)
+     .where(eq(creditTransactionsTable.monthYear, monthYear))
+     .groupBy(creditTransactionsTable.userId);
+ 
+-  const usageMap = new Map(creditRows.map(r => [r.userId, Number(r.used)]));
++  const usageMap = new Map<number, number>(creditRows.map((r) => [r.userId, Number(r.used)]));
+ 
+-  const result = users.map(u => {
++  const result = users.map((u) => {
+     const limit = PLAN_LIMITS[u.subscriptionPlan] ?? 20;
+     const used = usageMap.get(u.id) ?? 0;
+     const creditsLeft = limit === -1 ? -1 : Math.max(0, limit - used);
+     return { ...u, creditsUsed: used, creditsLeft, monthlyLimit: limit };
+   });
+ 
+   res.json(result);
+ });
+ 
+ // ─── Give / reset credits ─────────────────────────────────────────────────────
+ router.patch("/user/:id/credits", async (req: AuthRequest, res) => {
+-  const id = parseInt(req.params.id, 10);
++  const id = Number(req.params.id);
+   if (isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
+ 
+   const { amount, action } = req.body ?? {};
+ 
+   if (action === "reset") {
+     const monthYear = currentMonthYear();
+     await db
+       .delete(creditTransactionsTable)
+       .where(
+         and(
+           eq(creditTransactionsTable.userId, id),
+           eq(creditTransactionsTable.monthYear, monthYear)
+         )
+       );
+     res.json({ success: true, message: "Credits reset for current month." });
+     return;
+   }
+ 
+   const credits = Number(amount);
+   if (isNaN(credits) || credits <= 0) {
+     res.status(400).json({ error: "amount must be a positive number" });
+     return;
+   }
+ 
+   const monthYear = currentMonthYear();
+   await db.insert(creditTransactionsTable).values({
+     userId: id,
+     creditsUsed: -credits,
+     featureUsed: "admin_grant",
+     monthYear,
+   });
+ 
+   res.json({ success: true, message: `Granted ${credits} credits.` });
+ });
+ 
+ // ─── Ban user ─────────────────────────────────────────────────────────────────
+ router.patch("/user/:id/ban", async (req: AuthRequest, res) => {
+-  const id = parseInt(req.params.id, 10);
++  const id = Number(req.params.id);
+   if (isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
+ 
+   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
+   if (!existing) { res.status(404).json({ error: "User not found." }); return; }
+ 
+   await db.update(usersTable).set({ banned: true, updatedAt: new Date() }).where(eq(usersTable.id, id));
+   res.json({ success: true });
+ });
+ 
+ // ─── Activate user ────────────────────────────────────────────────────────────
+ router.patch("/user/:id/activate", async (req: AuthRequest, res) => {
+-  const id = parseInt(req.params.id, 10);
++  const id = Number(req.params.id);
+   if (isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
+ 
+   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
+   if (!existing) { res.status(404).json({ error: "User not found." }); return; }
+ 
+   await db.update(usersTable).set({ banned: false, updatedAt: new Date() }).where(eq(usersTable.id, id));
+   res.json({ success: true });
+ });
+ 
+ // ─── Change role ──────────────────────────────────────────────────────────────
+ router.patch("/user/:id/role", async (req: AuthRequest, res) => {
+-  const id = parseInt(req.params.id, 10);
++  const id = Number(req.params.id);
+   if (isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
+ 
+   const { role } = req.body ?? {};
+   const allowed = ["job_seeker", "recruiter"];
+   if (!allowed.includes(role)) {
+     res.status(400).json({ error: `role must be one of: ${allowed.join(", ")}` });
+     return;
+   }
+ 
+   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
+   if (!existing) { res.status(404).json({ error: "User not found." }); return; }
+ 
+   await db.update(usersTable).set({ role, updatedAt: new Date() }).where(eq(usersTable.id, id));
+   res.json({ success: true });
+ });
+ 
+ // ─── Delete user ──────────────────────────────────────────────────────────────
+ router.delete("/user/:id", async (req: AuthRequest, res) => {
+-  const id = parseInt(req.params.id, 10);
++  const id = Number(req.params.id);
+   if (isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
+ 
+   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
+   if (!existing) { res.status(404).json({ error: "User not found." }); return; }
+ 
+   await db.delete(usersTable).where(eq(usersTable.id, id));
+   res.json({ success: true });
+ });
+ 
+ // ─── Tickets ──────────────────────────────────────────────────────────────────
+ router.get("/tickets", async (req: AuthRequest, res) => {
+   const status = typeof req.query.status === "string" ? req.query.status : undefined;
+   const category = typeof req.query.category === "string" ? req.query.category : undefined;
+   const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
+ 
+   const conditions: any[] = [];
+   if (status && ["open", "in_progress", "resolved"].includes(status)) conditions.push(eq(supportTicketsTable.status, status));
+   if (category && ["bug", "payment", "account", "general"].includes(category)) conditions.push(eq(supportTicketsTable.category, category));
+   const where = conditions.length > 1 ? and(...conditions) : conditions[0];
+ 
+   let tickets = await db
+     .select({
+       id: supportTicketsTable.id,
+       name: supportTicketsTable.name,
+       email: supportTicketsTable.email,
+@@ -246,106 +246,121 @@ router.get("/tickets", async (req: AuthRequest, res) => {
+       category: supportTicketsTable.category,
+       message: supportTicketsTable.message,
+       status: supportTicketsTable.status,
+       adminReply: supportTicketsTable.adminReply,
+       createdAt: supportTicketsTable.createdAt,
+       userId: supportTicketsTable.userId,
+     })
+     .from(supportTicketsTable)
+     .where(where)
+     .orderBy(desc(supportTicketsTable.createdAt));
+ 
+   if (query) {
+     const needle = query.toLowerCase();
+     tickets = tickets.filter((t: any) =>
+       t.subject.toLowerCase().includes(needle)
+       || t.name.toLowerCase().includes(needle)
+       || t.email.toLowerCase().includes(needle)
+       || t.category.toLowerCase().includes(needle)
+     );
+   }
+ 
+   res.json(tickets);
+ });
+ 
+ router.patch("/ticket/:id/reply", async (req: AuthRequest, res) => {
+-  const id = parseInt(req.params.id, 10);
++  const id = Number(req.params.id);
+   if (isNaN(id)) { res.status(400).json({ error: "Invalid ticket ID" }); return; }
+ 
+   const { reply } = req.body ?? {};
+   if (!reply || typeof reply !== "string" || !reply.trim()) {
+     res.status(400).json({ error: "Reply text is required." });
+     return;
+   }
+ 
+   const [existing] = await db.select({ id: supportTicketsTable.id })
+     .from(supportTicketsTable).where(eq(supportTicketsTable.id, id)).limit(1);
+   if (!existing) { res.status(404).json({ error: "Ticket not found." }); return; }
+ 
+   await db.update(supportTicketsTable)
+     .set({ adminReply: reply.trim(), status: "resolved" })
+     .where(eq(supportTicketsTable.id, id));
+ 
+   const [updated] = await db.select().from(supportTicketsTable)
+     .where(eq(supportTicketsTable.id, id)).limit(1);
+ 
+   res.json({ success: true, ticket: updated });
+ });
+ 
+ router.patch("/ticket/:id/status", async (req: AuthRequest, res) => {
+-  const id = parseInt(req.params.id, 10);
++  const id = Number(req.params.id);
+   const status = String(req.body?.status ?? "");
+   if (isNaN(id) || !["open", "in_progress", "resolved"].includes(status)) {
+     res.status(400).json({ error: "Invalid ticket ID or status." });
+     return;
+   }
+   await db.update(supportTicketsTable).set({ status }).where(eq(supportTicketsTable.id, id));
+   const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id)).limit(1);
+   res.json({ success: true, ticket });
+ });
+ 
+ router.post("/notifications/send", async (req: AuthRequest, res) => {
+-  const { title, message, audience = "all", channels = ["in_app"] } = req.body ?? {};
++  const { title, message, audience = "all", channels = ["in_app"], recipientUserIds = [] } = req.body ?? {};
+   if (!title || !message) {
+     res.status(400).json({ error: "Title and message are required." });
+     return;
+   }
+-  const validAudience = ["all", "job_seeker", "recruiter"];
++  const validAudience = ["all", "job_seeker", "recruiter", "selected"];
+   if (!validAudience.includes(audience)) {
+     res.status(400).json({ error: "Invalid audience." });
+     return;
+   }
+ 
+   const baseUsersQuery = db.select({ id: usersTable.id, email: usersTable.email, name: usersTable.name, role: usersTable.role })
+     .from(usersTable);
+-  const users = audience === "all"
+-    ? await baseUsersQuery
+-    : await baseUsersQuery.where(eq(usersTable.role, audience));
++  type BroadcastUser = { id: number; email: string; name: string; role: string };
++  let users: BroadcastUser[];
++  if (audience === "all") {
++    users = await baseUsersQuery;
++  } else if (audience === "selected") {
++    const ids = Array.isArray(recipientUserIds)
++      ? recipientUserIds.map((id: unknown) => Number(id)).filter((id: number) => Number.isInteger(id) && id > 0)
++      : [];
++    if (!ids.length) {
++      res.status(400).json({ error: "recipientUserIds is required when audience is selected." });
++      return;
++    }
++    const allUsers = await baseUsersQuery;
++    const idSet = new Set(ids);
++    users = allUsers.filter((u: BroadcastUser) => idSet.has(u.id));
++  } else {
++    users = await baseUsersQuery.where(eq(usersTable.role, audience));
++  }
+ 
+   if (users.length === 0) {
+     res.json({ success: true, sent: 0 });
+     return;
+   }
+ 
+   await db.insert(adminNotificationsTable).values(
+-    users.map((u) => ({
++    users.map((u: BroadcastUser) => ({
+       userId: u.id,
+       title: String(title).trim(),
+       message: String(message).trim(),
+       channel: channels.includes("email") ? "email+in_app" : "in_app",
+       audience,
+     }))
+   );
+ 
+   if (channels.includes("email")) {
+-    await Promise.all(users.map((u) => sendAdminBroadcastEmail(u.email, u.name, String(title).trim(), String(message).trim())));
++    await Promise.all(users.map((u: BroadcastUser) => sendAdminBroadcastEmail(u.email, u.name, String(title).trim(), String(message).trim())));
+   }
+ 
+   res.json({ success: true, sent: users.length });
+ });
+ 
+ router.get("/notifications", async (_req: AuthRequest, res) => {
+   const rows = await db.select().from(adminNotificationsTable).orderBy(desc(adminNotificationsTable.createdAt));
+   res.json(rows);
+ });
+ 
+ export default router;
+diff --git a/artifacts/api-server/src/routes/applications.ts b/artifacts/api-server/src/routes/applications.ts
+index 676fc6c8565cc5c0e1c7f20b0fa2ca00d4d0b318..c2f701f4877141e107d8b168c7c1105388b4d301 100644
+--- a/artifacts/api-server/src/routes/applications.ts
++++ b/artifacts/api-server/src/routes/applications.ts
+@@ -67,51 +67,51 @@ router.post("/", authenticate, async (req: AuthRequest, res) => {
+   }
+ 
+   await db.insert(applicationsTable).values({
+     jobId,
+     userId: req.userId!,
+     coverLetter: coverLetter ?? null,
+     resumeUrl: resumeUrl ?? null,
+     status: "applied",
+     recruiterStatus: "pending",
+   });
+ 
+   const [app] = await db.select().from(applicationsTable)
+     .where(and(eq(applicationsTable.userId, req.userId!), eq(applicationsTable.jobId, jobId)))
+     .limit(1);
+ 
+   // Increment application count on job
+   await db.update(jobsTable)
+     .set({ applicationCount: sql`${jobsTable.applicationCount} + 1` })
+     .where(eq(jobsTable.id, jobId));
+ 
+   res.json(serializeApp(app, job));
+ });
+ 
+ router.patch("/:applicationId", authenticate, async (req: AuthRequest, res) => {
+   const { applicationId } = req.params;
+-  const id = parseInt(applicationId, 10);
++  const id = Number(applicationId);
+   const { status, notes, followUpDate, reminderSent } = req.body;
+ 
+   const updates: any = { updatedAt: new Date() };
+   if (status !== undefined) updates.status = status;
+   if (notes !== undefined) updates.notes = notes;
+   if (followUpDate !== undefined) updates.followUpDate = followUpDate ? new Date(followUpDate) : null;
+   if (reminderSent !== undefined) updates.reminderSent = reminderSent;
+ 
+   await db
+     .update(applicationsTable)
+     .set(updates)
+     .where(and(eq(applicationsTable.id, id), eq(applicationsTable.userId, req.userId!)));
+ 
+   const [app] = await db.select().from(applicationsTable)
+     .where(and(eq(applicationsTable.id, id), eq(applicationsTable.userId, req.userId!)))
+     .limit(1);
+ 
+   if (!app) {
+     res.status(404).json({ error: "Not Found", message: "Application not found" });
+     return;
+   }
+ 
+   const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, app.jobId)).limit(1);
+   res.json(serializeApp(app, job));
+ });
+diff --git a/artifacts/api-server/src/routes/auth.ts b/artifacts/api-server/src/routes/auth.ts
+index d5cff5b105f6c47739ea5c2361446ad8ac48a8c3..e26c956566e56048688d7823705448f5f971058d 100644
+--- a/artifacts/api-server/src/routes/auth.ts
++++ b/artifacts/api-server/src/routes/auth.ts
+@@ -1,34 +1,55 @@
++import crypto from "crypto";
+ import { Router } from "express";
+ import { db, usersTable, profilesTable, subscriptionsTable } from "@workspace/db";
+ import { eq } from "drizzle-orm";
+ import { hashPassword, comparePassword, generateToken } from "../lib/auth.js";
+ import { authenticate, AuthRequest } from "../middlewares/authenticate.js";
+ import { sendSignupEmail, sendPasswordResetEmail } from "../services/emailService.js";
++import { generateOtpCode, sendOtpSms } from "../services/smsService.js";
+ 
+ const router = Router();
+ 
++
++type PhoneOtpRecord = {
++  code: string;
++  expiresAt: number;
++  attempts: number;
++};
++
++const phoneOtpStore = new Map<string, PhoneOtpRecord>();
++const OTP_EXPIRY_MS = 10 * 60 * 1000;
++const OTP_MAX_ATTEMPTS = 5;
++
++function normalizePhone(raw: unknown): string {
++  const cleaned = String(raw ?? "").replace(/[^\d+]/g, "").trim();
++  if (!cleaned) return "";
++  if (cleaned.startsWith("+")) return cleaned;
++  if (cleaned.length === 10) return `+91${cleaned}`;
++  return `+${cleaned}`;
++}
++
+ function calcProfileCompletion(user: any, profile: any): number {
+   let score = 0;
+   if (user?.name) score += 15;
+   if (user?.avatarUrl) score += 15;
+   if (user?.phone) score += 15;
+   if ((profile?.preferredLocations ?? []).length > 0) score += 15;
+   if ((profile?.skills ?? []).length > 0) score += 15;
+   if ((profile?.education ?? []).length > 0) score += 15;
+   if (profile?.resumeUrl) score += 10;
+   return score;
+ }
+ 
+ router.post("/register", async (req, res) => {
+   try {
+     const { name, email, password, phone, role = "job_seeker" } = req.body;
+     if (!name || !email || !password) {
+       res.status(400).json({ error: "Bad Request", message: "Name, email, and password are required" });
+       return;
+     }
+ 
+     const validRole = role === "recruiter" ? "recruiter" : "job_seeker";
+ 
+     const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+     if (existing.length) {
+       res.status(400).json({ error: "Bad Request", message: "Email already registered" });
+@@ -192,40 +213,127 @@ router.post("/google", async (req, res) => {
+       await sendSignupEmail(user.email, user.name);
+     }
+ 
+     const [userProfile] = await db.select().from(profilesTable).where(eq(profilesTable.userId, user.id)).limit(1);
+     const token = generateToken(user.id);
+     res.json({
+       token,
+       user: {
+         id: user.id,
+         name: user.name,
+         email: user.email,
+         phone: user.phone ?? null,
+         avatarUrl: user.avatarUrl ?? null,
+         subscriptionPlan: user.subscriptionPlan,
+         role: user.role,
+         profileCompletionPct: calcProfileCompletion(user, userProfile),
+         createdAt: user.createdAt.toISOString(),
+       }
+     });
+   } catch (err) {
+     console.error("[POST /auth/google]", err);
+     res.status(500).json({ error: "Internal Server Error", message: "Google login failed." });
+   }
+ });
+ 
++
++router.post("/phone/request-otp", async (req, res) => {
++  try {
++    const phone = normalizePhone(req.body?.phone);
++    const role = req.body?.role === "recruiter" ? "recruiter" : "job_seeker";
++    if (!phone || phone.length < 11) {
++      res.status(400).json({ error: "Bad Request", message: "A valid phone number is required." });
++      return;
++    }
++
++    const code = generateOtpCode();
++    phoneOtpStore.set(phone, { code, expiresAt: Date.now() + OTP_EXPIRY_MS, attempts: 0 });
++    const smsResult = await sendOtpSms(phone, code);
++
++    // NOTE: otp is returned only when SMS provider is not configured to keep QA/dev functional.
++    res.json({ success: true, provider: smsResult.provider, otp: smsResult.delivered ? undefined : code, role });
++  } catch (err) {
++    console.error("[POST /auth/phone/request-otp]", err);
++    res.status(500).json({ error: "Internal Server Error", message: "Failed to send OTP." });
++  }
++});
++
++router.post("/phone/verify-otp", async (req, res) => {
++  try {
++    const phone = normalizePhone(req.body?.phone);
++    const code = String(req.body?.otp ?? "").trim();
++    const role = req.body?.role === "recruiter" ? "recruiter" : "job_seeker";
++
++    const record = phoneOtpStore.get(phone);
++    if (!record || Date.now() > record.expiresAt) {
++      phoneOtpStore.delete(phone);
++      res.status(400).json({ error: "Bad Request", message: "OTP expired. Please request a new code." });
++      return;
++    }
++    if (record.attempts >= OTP_MAX_ATTEMPTS) {
++      phoneOtpStore.delete(phone);
++      res.status(429).json({ error: "Too Many Requests", message: "Too many attempts. Request OTP again." });
++      return;
++    }
++    if (record.code !== code) {
++      record.attempts += 1;
++      phoneOtpStore.set(phone, record);
++      res.status(401).json({ error: "Unauthorized", message: "Invalid OTP." });
++      return;
++    }
++
++    phoneOtpStore.delete(phone);
++
++    let [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone)).limit(1);
++    if (!user) {
++      const randomHash = await hashPassword(`phone-otp-${crypto.randomUUID()}`);
++      const generatedEmail = `phone_${phone.replace(/[^\d]/g, "")}@hirenextai.local`;
++      await db.insert(usersTable).values({
++        name: `User ${phone.slice(-4)}`,
++        email: generatedEmail,
++        phone,
++        passwordHash: randomHash,
++        role,
++      });
++      [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone)).limit(1);
++      if (role === "job_seeker") {
++        await db.insert(profilesTable).values({ userId: user.id });
++      }
++      await db.insert(subscriptionsTable).values({ userId: user.id, plan: "free", status: "active" });
++    }
++
++    const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.userId, user.id)).limit(1);
++    const token = generateToken(user.id);
++    res.json({
++      token,
++      user: {
++        id: user.id,
++        name: user.name,
++        email: user.email,
++        phone: user.phone ?? null,
++        avatarUrl: user.avatarUrl ?? null,
++        subscriptionPlan: user.subscriptionPlan,
++        role: user.role,
++        profileCompletionPct: calcProfileCompletion(user, profile),
++        createdAt: user.createdAt.toISOString(),
++      },
++    });
++  } catch (err) {
++    console.error("[POST /auth/phone/verify-otp]", err);
++    res.status(500).json({ error: "Internal Server Error", message: "Phone login failed." });
++  }
++});
+ router.post("/password-reset", async (req, res) => {
+   const email = String(req.body?.email ?? "").trim().toLowerCase();
+   if (!email) {
+     res.status(400).json({ error: "Bad Request", message: "Email is required." });
+     return;
+   }
+   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+   if (user) {
+     const resetUrl = `${process.env.APP_URL ?? "https://hirenextai.com"}/reset-password?email=${encodeURIComponent(email)}`;
+     await sendPasswordResetEmail(user.email, user.name, resetUrl);
+   }
+   res.json({ success: true, message: "If an account exists, a password reset email has been sent." });
+ });
+ 
+ export default router;
+diff --git a/artifacts/api-server/src/routes/profile.ts b/artifacts/api-server/src/routes/profile.ts
+index a2a989f70aaa53a0a29f5c1e09da90629fb233cb..e9bec7d2a185e5f0ddc58c2378015062ffc9b5ec 100644
+--- a/artifacts/api-server/src/routes/profile.ts
++++ b/artifacts/api-server/src/routes/profile.ts
+@@ -150,53 +150,55 @@ router.patch("/", authenticate, async (req: AuthRequest, res) => {
+ 
+ /* ── GET /api/profile/skill-suggestions ────────────────────────────────────── */
+ const POPULAR_SKILLS = [
+   "JavaScript", "TypeScript", "React", "Node.js", "Python",
+   "Java", "C++", "SQL", "MongoDB", "PostgreSQL",
+   "HTML/CSS", "Git", "REST APIs", "GraphQL", "Docker",
+   "AWS", "Linux", "Express.js", "Next.js", "Vue.js",
+   "Machine Learning", "Data Analysis", "Excel", "Communication",
+   "Problem Solving", "Agile/Scrum", "Figma", "Tailwind CSS",
+   "Spring Boot", "Django",
+ ];
+ 
+ router.get("/skill-suggestions", authenticate, async (_req: AuthRequest, res) => {
+   res.json({ skills: POPULAR_SKILLS });
+ });
+ 
+ /* ── POST /api/profile/upload-resume ───────────────────────────────────────── */
+ router.post(
+   "/upload-resume",
+   authenticate,
+   upload.single("resume"),
+   async (req: AuthRequest, res) => {
+     if (!req.file) return res.status(400).json({ error: "No PDF file provided" });
+ 
+     try {
+-      const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+-      const parsed = await pdfParse(req.file.buffer);
++      const { PDFParse } = await import("pdf-parse");
++      const parser = new PDFParse({ data: req.file.buffer });
++      const parsed = await parser.getText();
+       const resumeText = parsed.text?.slice(0, 8000) ?? "";
++      await parser.destroy();
+ 
+       if (!resumeText.trim()) {
+         return res.status(422).json({ error: "Could not extract text from PDF" });
+       }
+ 
+       const completion = await openai.chat.completions.create({
+         model: "gpt-4o-mini",
+         temperature: 0.2,
+         response_format: { type: "json_object" },
+         messages: [
+           {
+             role: "system",
+             content: `You are a resume parser. Extract structured career data from the resume text.
+ Return ONLY valid JSON with this exact shape:
+ {
+   "skills": ["string"],
+   "education": [{ "institution": "string", "degree": "string", "field": "string", "startYear": number, "endYear": number | null, "current": boolean }],
+   "experience": [{ "company": "string", "title": "string", "location": null, "startDate": "YYYY-MM", "endDate": "YYYY-MM" | null, "current": boolean, "description": "string" }],
+   "careerGoal": "string"
+ }
+ Keep arrays empty if no relevant data. For careerGoal write a one-sentence career objective inferred from the resume.`,
+           },
+           { role: "user", content: resumeText },
+         ],
+       });
+diff --git a/artifacts/api-server/src/routes/recruiter.ts b/artifacts/api-server/src/routes/recruiter.ts
+index e3d5e3e2599542c466f6968cb46eac02fdd187b5..019f4199ce5522b863b2742bec5fca49c6f7ad69 100644
+--- a/artifacts/api-server/src/routes/recruiter.ts
++++ b/artifacts/api-server/src/routes/recruiter.ts
+@@ -382,107 +382,107 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res) => {
+   });
+ 
+   const [job] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.postedByUserId, req.userId!), eq(jobsTable.isDirectPost, true)))
+     .orderBy(desc(jobsTable.id))
+     .limit(1);
+ 
+   res.status(201).json(serializeJob(job));
+ });
+ 
+ /* ── GET /api/recruiter/jobs ────────────────────────────────────────────── */
+ router.get("/jobs", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+   const jobs = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.postedByUserId, req.userId!), eq(jobsTable.isDirectPost, true)))
+     .orderBy(desc(jobsTable.createdAt));
+ 
+   res.json(jobs.map(serializeJob));
+ });
+ 
+ /* ── PATCH /api/recruiter/jobs/:jobId ───────────────────────────────────── */
+ router.patch("/jobs/:jobId", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+-  const jobId = parseInt(req.params.jobId!, 10);
++  const jobId = Number(req.params.jobId);
+   const [existing] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
+   if (!existing) {
+     res.status(404).json({ error: "Not Found", message: "Job not found" });
+     return;
+   }
+ 
+   const {
+     title, location, isRemote, type, category, salaryMin, salaryMax,
+     description, requirements, skills, isFresher, experienceYears, applicationDeadline,
+   } = req.body;
+ 
+   await db.update(jobsTable)
+     .set({
+       ...(title && { title }),
+       ...(location && { location }),
+       isRemote: isRemote ?? existing.isRemote,
+       ...(type && { type }),
+       ...(category && { category }),
+       salaryMin: salaryMin !== undefined ? parseInt(salaryMin) : existing.salaryMin,
+       salaryMax: salaryMax !== undefined ? parseInt(salaryMax) : existing.salaryMax,
+       ...(description && { description }),
+       ...(requirements && { requirements }),
+       ...(skills && { skills }),
+       isFresher: isFresher ?? existing.isFresher,
+       experienceYears: experienceYears !== undefined ? parseInt(experienceYears) : existing.experienceYears,
+       applicationDeadline: applicationDeadline ? new Date(applicationDeadline) : existing.applicationDeadline,
+     })
+     .where(eq(jobsTable.id, jobId));
+ 
+   const [updated] = await db.select().from(jobsTable).where(eq(jobsTable.id, jobId)).limit(1);
+ 
+   res.json(serializeJob(updated));
+ });
+ 
+ /* ── DELETE /api/recruiter/jobs/:jobId ──────────────────────────────────── */
+ router.delete("/jobs/:jobId", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+-  const jobId = parseInt(req.params.jobId!, 10);
++  const jobId = Number(req.params.jobId);
+   const [existing] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
+   if (!existing) {
+     res.status(404).json({ error: "Not Found", message: "Job not found" });
+     return;
+   }
+ 
+   await db.delete(jobsTable).where(eq(jobsTable.id, jobId));
+   res.json({ success: true });
+ });
+ 
+ /* ── PATCH /api/recruiter/jobs/:jobId/boost ─────────────────────────────── */
+ router.patch("/jobs/:jobId/boost", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+-  const jobId = parseInt(req.params.jobId!, 10);
++  const jobId = Number(req.params.jobId);
+ 
+   const [rProfile] = await db.select({
+     id: recruiterProfilesTable.id,
+     jobBoostCredits: recruiterProfilesTable.jobBoostCredits,
+   }).from(recruiterProfilesTable).where(eq(recruiterProfilesTable.userId, req.userId!)).limit(1);
+ 
+   if (!rProfile) {
+     res.status(400).json({ error: "Bad Request", message: "Recruiter profile not found" });
+     return;
+   }
+ 
+   if ((rProfile.jobBoostCredits ?? 0) < 1) {
+     res.status(403).json({ error: "No boost credits", message: "You have no boost credits remaining. Upgrade your plan." });
+     return;
+   }
+ 
+   const [job] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
+ 
+   if (!job) {
+     res.status(404).json({ error: "Not Found", message: "Job not found" });
+     return;
+   }
+ 
+   if (job.isBoosted) {
+@@ -495,51 +495,51 @@ router.patch("/jobs/:jobId/boost", authenticate, async (req: AuthRequest, res) =
+ 
+   await db.update(jobsTable)
+     .set({ isBoosted: true, boostedAt: new Date(), boostExpiry })
+     .where(eq(jobsTable.id, jobId));
+ 
+   const [updatedJob] = await db.select().from(jobsTable).where(eq(jobsTable.id, jobId)).limit(1);
+ 
+   await db.update(recruiterProfilesTable)
+     .set({ jobBoostCredits: (rProfile.jobBoostCredits ?? 1) - 1, updatedAt: new Date() })
+     .where(eq(recruiterProfilesTable.id, rProfile.id));
+ 
+   await db.insert(jobBoostTransactionsTable).values({
+     userId: req.userId!,
+     jobId,
+     creditsUsed: 1,
+     type: "boost",
+   });
+ 
+   res.json({ success: true, job: serializeJob(updatedJob), creditsRemaining: (rProfile.jobBoostCredits ?? 1) - 1 });
+ });
+ 
+ /* ── GET /api/recruiter/jobs/:jobId/applicants ──────────────────────────── */
+ router.get("/jobs/:jobId/applicants", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+-  const jobId = parseInt(req.params.jobId!, 10);
++  const jobId = Number(req.params.jobId);
+ 
+   const [job] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
+   if (!job) {
+     res.status(404).json({ error: "Not Found", message: "Job not found" });
+     return;
+   }
+ 
+   const apps = await db
+     .select()
+     .from(applicationsTable)
+     .innerJoin(usersTable, eq(applicationsTable.userId, usersTable.id))
+     .where(eq(applicationsTable.jobId, jobId))
+     .orderBy(desc(applicationsTable.appliedAt));
+ 
+   const userIds = apps.map(a => a.users.id);
+   const profiles = userIds.length > 0
+     ? await db.select().from(profilesTable).where(inArray(profilesTable.userId, userIds))
+     : [];
+ 
+   const profileMap = new Map(profiles.map(p => [p.userId, p]));
+ 
+   res.json({
+     job: serializeJob(job),
+     applicants: apps.map(row => {
+@@ -554,52 +554,52 @@ router.get("/jobs/:jobId/applicants", authenticate, async (req: AuthRequest, res
+         status: row.applications.status,
+         recruiterStatus: row.applications.recruiterStatus ?? "pending",
+         coverLetter: row.applications.coverLetter ?? null,
+         resumeUrl: row.applications.resumeUrl ?? profile?.resumeUrl ?? null,
+         notes: row.applications.notes ?? null,
+         appliedAt: row.applications.appliedAt.toISOString(),
+         profile: profile ? {
+           skills: profile.skills,
+           education: profile.education,
+           experience: profile.experience,
+           headline: profile.headline,
+           preferredLocations: profile.preferredLocations,
+           isFresher: profile.isFresher,
+           degreeLevel: profile.degreeLevel,
+           specialization: profile.specialization,
+         } : null,
+       };
+     }),
+   });
+ });
+ 
+ /* ── PATCH /api/recruiter/jobs/:jobId/applicants/:appId ─────────────────── */
+ router.patch("/jobs/:jobId/applicants/:appId", authenticate, async (req: AuthRequest, res) => {
+   if (!await requireRecruiter(req, res)) return;
+ 
+-  const jobId = parseInt(req.params.jobId!, 10);
+-  const appId = parseInt(req.params.appId!, 10);
++  const jobId = Number(req.params.jobId);
++  const appId = Number(req.params.appId);
+   const { recruiterStatus, notes } = req.body;
+ 
+   if (!["pending", "shortlisted", "rejected"].includes(recruiterStatus)) {
+     res.status(400).json({ error: "Bad Request", message: "recruiterStatus must be pending, shortlisted, or rejected" });
+     return;
+   }
+ 
+   const [job] = await db.select().from(jobsTable)
+     .where(and(eq(jobsTable.id, jobId), eq(jobsTable.postedByUserId, req.userId!))).limit(1);
+   if (!job) {
+     res.status(404).json({ error: "Not Found", message: "Job not found" });
+     return;
+   }
+ 
+   const [existing] = await db.select({ id: applicationsTable.id })
+     .from(applicationsTable)
+     .where(and(eq(applicationsTable.id, appId), eq(applicationsTable.jobId, jobId)))
+     .limit(1);
+ 
+   if (!existing) {
+     res.status(404).json({ error: "Not Found", message: "Application not found" });
+     return;
+   }
+ 
+   await db.update(applicationsTable)
+diff --git a/artifacts/api-server/src/routes/saved-jobs.ts b/artifacts/api-server/src/routes/saved-jobs.ts
+index 33ea59a3f74fd3b7efe07d474870d77523d3bc78..1e2665b862b47dfaa18224aa2b14a86f8ff07390 100644
+--- a/artifacts/api-server/src/routes/saved-jobs.ts
++++ b/artifacts/api-server/src/routes/saved-jobs.ts
+@@ -71,59 +71,59 @@ router.post("/", authenticate, async (req: AuthRequest, res) => {
+     const [inserted] = await db.select().from(savedJobsTable)
+       .where(and(eq(savedJobsTable.userId, req.userId!), eq(savedJobsTable.jobId, jobId)))
+       .limit(1);
+     saved = inserted;
+   }
+ 
+   res.json({
+     id: saved.id,
+     jobId: saved.jobId,
+     notes: saved.notes ?? null,
+     savedAt: saved.savedAt instanceof Date ? saved.savedAt.toISOString() : saved.savedAt,
+     job: {
+       ...job,
+       companyLogoUrl: job.companyLogoUrl ?? null,
+       salaryMin: job.salaryMin ?? null,
+       salaryMax: job.salaryMax ?? null,
+       experienceYears: job.experienceYears ?? null,
+       applyUrl: job.applyUrl ?? null,
+       postedAt: job.postedAt instanceof Date ? job.postedAt.toISOString() : job.postedAt,
+     },
+   });
+ });
+ 
+ /* ── DELETE /api/saved-jobs/:jobId — unsave a job ────────────────────────── */
+ router.delete("/:jobId", authenticate, async (req: AuthRequest, res) => {
+-  const jobId = parseInt(req.params.jobId, 10);
++  const jobId = Number(req.params.jobId);
+   await db.delete(savedJobsTable)
+     .where(and(eq(savedJobsTable.userId, req.userId!), eq(savedJobsTable.jobId, jobId)));
+   res.json({ success: true });
+ });
+ 
+ /* ── PATCH /api/saved-jobs/:id/notes — update notes on a saved job ─────── */
+ router.patch("/:id/notes", authenticate, async (req: AuthRequest, res) => {
+-  const id = parseInt(req.params.id, 10);
++  const id = Number(req.params.id);
+   const { notes } = req.body;
+ 
+   await db.update(savedJobsTable)
+     .set({ notes })
+     .where(and(eq(savedJobsTable.id, id), eq(savedJobsTable.userId, req.userId!)));
+ 
+   const [saved] = await db.select().from(savedJobsTable)
+     .where(and(eq(savedJobsTable.id, id), eq(savedJobsTable.userId, req.userId!)))
+     .limit(1);
+ 
+   if (!saved) {
+     res.status(404).json({ error: "Not Found" });
+     return;
+   }
+   res.json({ id: saved.id, notes: saved.notes });
+ });
+ 
+ /* ── GET /api/saved-jobs/ids — just the saved jobIds (for button state) ─── */
+ router.get("/ids", authenticate, async (req: AuthRequest, res) => {
+   const rows = await db
+     .select({ jobId: savedJobsTable.jobId })
+     .from(savedJobsTable)
+     .where(eq(savedJobsTable.userId, req.userId!));
+   res.json(rows.map(r => r.jobId));
+ });
+diff --git a/artifacts/api-server/src/routes/support.ts b/artifacts/api-server/src/routes/support.ts
+index cdaa5753021d60cecae50d55c36a07ec60e50de9..1757a8716c6ac66943224f8146b8d0ea2949de31 100644
+--- a/artifacts/api-server/src/routes/support.ts
++++ b/artifacts/api-server/src/routes/support.ts
+@@ -1,36 +1,68 @@
+ import { Router } from "express";
+ import { and, desc, eq, gte, sql } from "drizzle-orm";
+ import { db, supportTicketsTable, supportTicketMessagesTable, usersTable } from "@workspace/db";
+ import { authenticate, isAdmin, type AuthRequest } from "../middlewares/authenticate.js";
+ import { sendSupportReplyEmail } from "../services/emailService.js";
+ 
+ const router = Router();
+ 
+ const VALID_CATEGORIES = new Set(["bug", "payment", "account", "general"]);
+ const VALID_STATUSES = new Set(["open", "in_progress", "resolved"]);
+ 
++router.post("/ticket", async (req, res) => {
++  const { name, email, subject, message, category = "general" } = req.body ?? {};
++  if (!name || !email || !subject || !message) {
++    res.status(400).json({ error: "Name, email, subject, and message are required." });
++    return;
++  }
++  const normalizedCategory = String(category).toLowerCase();
++  if (!VALID_CATEGORIES.has(normalizedCategory)) {
++    res.status(400).json({ error: "Invalid category. Use bug, payment, account, or general." });
++    return;
++  }
++
++  const created = await db.insert(supportTicketsTable).values({
++    userId: null,
++    name: String(name).trim(),
++    email: String(email).trim(),
++    subject: String(subject).trim(),
++    category: normalizedCategory,
++    message: String(message).trim(),
++    status: "open",
++  });
++
++  const ticketId = Number(created[0].insertId);
++  await db.insert(supportTicketMessagesTable).values({
++    ticketId,
++    sender: "user",
++    message: String(message).trim(),
++  });
++
++  res.status(201).json({ success: true, ticketId });
++});
++
+ router.get("/tickets", authenticate, async (req: AuthRequest, res) => {
+   const status = typeof req.query.status === "string" ? req.query.status : undefined;
+   const category = typeof req.query.category === "string" ? req.query.category : undefined;
+   const conditions: any[] = [eq(supportTicketsTable.userId, req.userId!)];
+   if (status && VALID_STATUSES.has(status)) conditions.push(eq(supportTicketsTable.status, status));
+   if (category && VALID_CATEGORIES.has(category)) conditions.push(eq(supportTicketsTable.category, category));
+   const where = conditions.length > 1 ? and(...conditions) : conditions[0];
+ 
+   const tickets = await db
+     .select({
+       id: supportTicketsTable.id,
+       subject: supportTicketsTable.subject,
+       message: supportTicketsTable.message,
+       status: supportTicketsTable.status,
+       createdAt: supportTicketsTable.createdAt,
+       category: supportTicketsTable.category,
+     })
+     .from(supportTicketsTable)
+     .where(where)
+     .orderBy(desc(supportTicketsTable.createdAt));
+ 
+   res.json(tickets);
+ });
+ 
+ router.post("/tickets", authenticate, async (req: AuthRequest, res) => {
+diff --git a/artifacts/api-server/src/services/smsService.ts b/artifacts/api-server/src/services/smsService.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..8b943004fdf85aa9af5c7632ba7a6b8767b9b211
+--- /dev/null
++++ b/artifacts/api-server/src/services/smsService.ts
+@@ -0,0 +1,25 @@
++import crypto from "crypto";
++
++export function generateOtpCode(length = 6): string {
++  const max = 10 ** length;
++  return String(crypto.randomInt(0, max)).padStart(length, "0");
++}
++
++export async function sendOtpSms(phone: string, code: string): Promise<{ delivered: boolean; provider: string }> {
++  const smsApiUrl = process.env.SMS_API_URL;
++  const smsApiKey = process.env.SMS_API_KEY;
++  const message = `Your HirenextAI verification code is ${code}. It expires in 10 minutes.`;
++
++  if (smsApiUrl && smsApiKey) {
++    const response = await fetch(smsApiUrl, {
++      method: "POST",
++      headers: { "Content-Type": "application/json", Authorization: `Bearer ${smsApiKey}` },
++      body: JSON.stringify({ phone, message }),
++    });
++    if (!response.ok) throw new Error("SMS provider request failed");
++    return { delivered: true, provider: "custom_sms_api" };
++  }
++
++  console.log(`[SmsService] OTP for ${phone}: ${code} (SMS_API_URL not configured)`);
++  return { delivered: false, provider: "console" };
++}
+diff --git a/artifacts/hirenextai/src/App.tsx b/artifacts/hirenextai/src/App.tsx
+index 9f5b4f5468b8f76b891eb6b0fd5d7dd387234b7d..e3ef1fce816138c7fb1a773d6b0a02304ec80fbd 100644
+--- a/artifacts/hirenextai/src/App.tsx
++++ b/artifacts/hirenextai/src/App.tsx
+@@ -1,166 +1,168 @@
+ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+ import { Toaster } from "@/components/ui/toaster";
+ import { TooltipProvider } from "@/components/ui/tooltip";
+ import NotFound from "@/pages/not-found";
+-import { useAuth } from "@/hooks/use-auth";
++import { useAuth, useAuthStore } from "@/hooks/use-auth";
+ import { useDemoStore } from "@/store/demo";
+ import { useEffect, useLayoutEffect } from "react";
+ import LoginSuccess from "./pages/LoginSuccess";
+ 
+ import Landing from "@/pages/Landing";
+ import Auth from "@/pages/Auth";
+ import Features from "@/pages/Features";
+ import Pricing from "@/pages/Pricing";
+ import Contact from "@/pages/Contact";
+ import About from "@/pages/About";
+ import HelpCenter from "@/pages/HelpCenter";
+ import PrivacyPolicy from "@/pages/PrivacyPolicy";
+ import Terms from "@/pages/Terms";
+ import Cookies from "@/pages/Cookies";
+ import { DashboardLayout } from "@/components/layout/DashboardLayout";
+ import { AdminLayout } from "@/components/layout/AdminLayout";
+ import { RecruiterLayout } from "@/components/layout/RecruiterLayout";
+ import BoostJobs from "@/pages/dashboard/recruiter/BoostJobs";
+ import Jobs from "@/pages/dashboard/Jobs";
+ import Applications from "@/pages/dashboard/Applications";
+ import AITools from "@/pages/dashboard/AITools";
+ import Profile from "@/pages/dashboard/Profile";
+ import ResumePage from "@/pages/dashboard/Resume";
+ import ChatPage from "@/pages/dashboard/Chat";
+ import SubscriptionPage from "@/pages/dashboard/Subscription";
+ import RecruiterDashboard from "@/pages/dashboard/recruiter/RecruiterDashboard";
+ import PostJob from "@/pages/dashboard/recruiter/PostJob";
+ import RecruiterSetup from "@/pages/dashboard/recruiter/RecruiterSetup";
+ import RecruiterProfile from "@/pages/dashboard/recruiter/RecruiterProfile";
+ import RecruiterAnalytics from "@/pages/dashboard/recruiter/RecruiterAnalytics";
+ import EditJob from "@/pages/dashboard/recruiter/EditJob";
+ import RecruiterSubscription from "@/pages/dashboard/recruiter/RecruiterSubscription";
+ import JobAlerts from "@/pages/dashboard/JobAlerts";
+ import SavedJobs from "@/pages/dashboard/SavedJobs";
+ import Support from "@/pages/dashboard/support";
+ import AdminDashboard from "@/pages/admin/AdminDashboard";
+ import AdminUsers from "@/pages/admin/AdminUsers";
+ import RefundPolicy from "@/pages/RefundPolicy";
++import AdminEmail from "@/pages/admin/AdminEmail";
++import AdminNotifications from "@/pages/admin/AdminNotifications";
+ import { CookieConsent } from "@/components/CookieConsent";
+ import { DemoTimeoutModal } from "@/components/DemoTimeoutModal";
+ 
+ // Inject JWT token into all /api/ requests
+ const originalFetch = window.fetch;
+ window.fetch = async (...args) => {
+   let [resource, config] = args;
+   const url = typeof resource === "string" ? resource : resource instanceof Request ? resource.url : "";
+   if (url.startsWith("/api/")) {
+     const token = localStorage.getItem("hirenext_token");
+     if (token) {
+       config = config ? { ...config } : {};
+       const headers = new Headers(config.headers as HeadersInit | undefined);
+       headers.set("Authorization", `Bearer ${token}`);
+       config.headers = headers;
+     }
+   }
+   return originalFetch(resource, config);
+ };
+ 
+ const queryClient = new QueryClient({
+   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } }
+ });
+ 
+ function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+   const { isAuthenticated, isLoading, token } = useAuth();
+   const { isDemoMode, demoExpired } = useDemoStore();
+   const [, setLocation] = useLocation();
+ 
+   // Demo users (active or expired-but-modal-showing) bypass auth entirely.
+   // When demoExpired, DemoTimeoutModal handles UX; user stays on current page
+   // until they choose an exit action (Back to Home / Register / Sign In).
+   const isDemo = isDemoMode || demoExpired;
+ 
+   useEffect(() => {
+     if (isDemo) return;
+-    if (!token) setLocation("/");
+-    else if (!isLoading && !isAuthenticated) setLocation("/");
++    if (!token) setLocation("/login");
++    else if (!isLoading && !isAuthenticated) setLocation("/login");
+   }, [isDemo, token, isLoading, isAuthenticated, setLocation]);
+ 
+   if (isDemo) {
+     return (
+       <DashboardLayout>
+         <Component />
+       </DashboardLayout>
+     );
+   }
+ 
+   if (!token) return null;
+   if (isLoading) {
+     return (
+       <div className="min-h-screen bg-background flex items-center justify-center">
+         <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+       </div>
+     );
+   }
+   if (!isAuthenticated) return null;
+ 
+   return (
+     <DashboardLayout>
+       <Component />
+     </DashboardLayout>
+   );
+ }
+ 
+ function AdminRoute({ component: Component }: { component: React.ComponentType }) {
+   const { isAuthenticated, isLoading, token, user } = useAuth();
+   const [, setLocation] = useLocation();
+ 
+   useEffect(() => {
+-    if (!token) { setLocation("/"); return; }
++    if (!token) { setLocation("/login"); return; }
+     if (!isLoading && (!isAuthenticated || user?.role !== "admin")) setLocation("/dashboard/jobs");
+   }, [token, isLoading, isAuthenticated, user, setLocation]);
+ 
+   if (!token) return null;
+   if (isLoading) {
+     return (
+       <div className="min-h-screen bg-background flex items-center justify-center">
+         <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+       </div>
+     );
+   }
+   if (!isAuthenticated || user?.role !== "admin") return null;
+ 
+   return (
+     <AdminLayout>
+       <Component />
+     </AdminLayout>
+   );
+ }
+ 
+ function RecruiterRoute({ component: Component }: { component: React.ComponentType }) {
+   const { isAuthenticated, isLoading, token, user } = useAuth();
+   const [, setLocation] = useLocation();
+ 
+   useEffect(() => {
+-    if (!token) { setLocation("/"); return; }
++    if (!token) { setLocation("/login"); return; }
+     if (!isLoading && (!isAuthenticated || user?.role !== "recruiter")) setLocation("/dashboard/jobs");
+   }, [token, isLoading, isAuthenticated, user, setLocation]);
+ 
+   if (!token) return null;
+   if (isLoading) {
+     return (
+       <div className="min-h-screen bg-background flex items-center justify-center">
+         <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+       </div>
+     );
+   }
+   if (!isAuthenticated || user?.role !== "recruiter") return null;
+ 
+   return (
+     <RecruiterLayout>
+       <Component />
+     </RecruiterLayout>
+   );
+ }
+ 
+ function PublicRoute({ component: Component }: { component: React.ComponentType }) {
+   const { isAuthenticated, token, isLoading, user } = useAuth();
+   const [, setLocation] = useLocation();
+ 
+   useEffect(() => {
+@@ -236,49 +238,52 @@ function Router() {
+       <Route path="/refund-policy" component={RefundPolicy} />
+       <Route path="/login" component={() => <PublicRoute component={Auth} />} />
+       <Route path="/register" component={() => <PublicRoute component={Auth} />} />
+       <Route path="/login-success" component={LoginSuccess} />
+       <Route path="/dashboard" component={DashboardIndex} />
+       <Route path="/dashboard/jobs" component={JobsWithRecruiterRedirect} />
+       <Route path="/dashboard/applications" component={() => <ProtectedRoute component={Applications} />} />
+       <Route path="/dashboard/ai-tools" component={() => <ProtectedRoute component={AITools} />} />
+       <Route path="/dashboard/profile" component={() => <ProtectedRoute component={Profile} />} />
+       <Route path="/dashboard/resume" component={() => <ProtectedRoute component={ResumePage} />} />
+       <Route path="/dashboard/chat" component={() => <ProtectedRoute component={ChatPage} />} />
+       <Route path="/dashboard/subscription" component={() => <ProtectedRoute component={SubscriptionPage} />} />
+       <Route path="/dashboard/recruiter/setup" component={RecruiterSetup} />
+       <Route path="/dashboard/recruiter/boost-jobs" component={() => <RecruiterRoute component={BoostJobs} />} />
+       <Route path="/dashboard/recruiter/post-job" component={() => <RecruiterRoute component={PostJob} />} />
+       <Route path="/dashboard/recruiter/edit-job/:jobId" component={() => <RecruiterRoute component={EditJob} />} />
+       <Route path="/dashboard/recruiter/analytics" component={() => <RecruiterRoute component={RecruiterAnalytics} />} />
+       <Route path="/dashboard/recruiter/profile" component={() => <RecruiterRoute component={RecruiterProfile} />} />
+       <Route path="/dashboard/recruiter/subscription" component={() => <RecruiterRoute component={RecruiterSubscription} />} />
+       <Route path="/dashboard/recruiter" component={() => <RecruiterRoute component={RecruiterDashboard} />} />
+       <Route path="/dashboard/job-alerts" component={() => <ProtectedRoute component={JobAlerts} />} />
+       <Route path="/dashboard/saved-jobs" component={() => <ProtectedRoute component={SavedJobs} />} />
+       <Route path="/dashboard/support" component={() => <ProtectedRoute component={Support} />} />
+       <Route path="/dashboard/admin/users" component={() => <AdminRoute component={AdminUsers} />} />
+       <Route path="/dashboard/admin/tickets" component={() => <AdminRoute component={AdminDashboard} />} />
++      <Route path="/dashboard/admin/announcements" component={() => <AdminRoute component={AdminEmail} />} />
++      <Route path="/admin/announcements" component={() => <AdminRoute component={AdminEmail} />} />
++      <Route path="/dashboard/admin/notifications" component={() => <AdminRoute component={AdminNotifications} />} />
+       <Route path="/dashboard/admin/credits" component={() => <AdminRoute component={AdminDashboard} />} />
+       <Route path="/dashboard/admin" component={() => <AdminRoute component={AdminDashboard} />} />
+       <Route component={NotFound} />
+     </Switch>
+   );
+ }
+ 
+ function App() {
+   return (
+     <QueryClientProvider client={queryClient}>
+       <TooltipProvider>
+         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+           <ScrollToTop />
+           <Router />
+           <CookieConsent />
+           <DemoTimeoutModal />
+         </WouterRouter>
+         <Toaster />
+       </TooltipProvider>
+     </QueryClientProvider>
+   );
+ }
+ 
+ export default App;
+diff --git a/artifacts/hirenextai/src/components/CookieConsent.tsx b/artifacts/hirenextai/src/components/CookieConsent.tsx
+index ee4c25b0f900eab5cdd73a953bffe820610819eb..6ea86c60d20d31bb59963a2affd2629407b0b3eb 100644
+--- a/artifacts/hirenextai/src/components/CookieConsent.tsx
++++ b/artifacts/hirenextai/src/components/CookieConsent.tsx
+@@ -1,39 +1,40 @@
+ import { useState, useEffect } from "react";
+ import { motion, AnimatePresence } from "framer-motion";
+ import { Cookie, X } from "lucide-react";
+ import { Link } from "wouter";
+ 
+ export function CookieConsent() {
+   const [visible, setVisible] = useState(false);
+ 
+   useEffect(() => {
+     const consent = localStorage.getItem("cookie_consent");
+     if (!consent) {
+       const timer = setTimeout(() => setVisible(true), 1500);
+       return () => clearTimeout(timer);
+     }
++    return undefined;
+   }, []);
+ 
+   const accept = () => {
+     localStorage.setItem("cookie_consent", "accepted");
+     setVisible(false);
+   };
+ 
+   const deny = () => {
+     localStorage.setItem("cookie_consent", "denied");
+     setVisible(false);
+   };
+ 
+   return (
+     <AnimatePresence>
+       {visible && (
+         <motion.div
+           initial={{ opacity: 0, y: 80 }}
+           animate={{ opacity: 1, y: 0 }}
+           exit={{ opacity: 0, y: 80 }}
+           transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+           className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-sm z-[200]"
+         >
+           <div className="bg-black border border-white/10 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.8)] overflow-hidden backdrop-blur-xl">
+             {/* Header */}
+             <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-white/5">
+diff --git a/artifacts/hirenextai/src/components/layout/AdminLayout.tsx b/artifacts/hirenextai/src/components/layout/AdminLayout.tsx
+index 2f4ceafa22b55333740aa4a5d657be72a3705b95..2c2999806ba5e6e490785412d8edbdc6729884b2 100644
+--- a/artifacts/hirenextai/src/components/layout/AdminLayout.tsx
++++ b/artifacts/hirenextai/src/components/layout/AdminLayout.tsx
+@@ -1,109 +1,116 @@
+ import { Link, useLocation } from "wouter";
+ import { useAuth } from "@/hooks/use-auth";
+ import {
+   LayoutDashboard, Users, TicketCheck, BarChart3, Briefcase, Zap,
+   LogOut, ShieldAlert, ChevronRight,
+ } from "lucide-react";
+ import { motion } from "framer-motion";
+ import { Logo } from "@/components/Logo";
++import { useSystemTheme } from "@/hooks/use-system-theme";
++import { useState } from "react";
+ 
+ const adminNavItems = [
+   { href: "/dashboard/admin", icon: LayoutDashboard, label: "Dashboard", exact: true },
+   { href: "/dashboard/admin/users", icon: Users, label: "Users" },
+   { href: "/dashboard/admin/tickets", icon: TicketCheck, label: "Tickets" },
++  { href: "/dashboard/admin/announcements", icon: Briefcase, label: "Announcements" },
++  { href: "/dashboard/admin/notifications", icon: BarChart3, label: "Notifications" },
+   { href: "/dashboard/admin/credits", icon: Zap, label: "Credits" },
+ ];
+ 
+ function AdminNavItem({
+   href,
+   icon: Icon,
+   label,
+   exact,
+ }: {
+   href: string;
+   icon: React.ComponentType<{ className?: string }>;
+   label: string;
+   exact?: boolean;
+ }) {
+   const [location] = useLocation();
+   const active = exact ? location === href : location.startsWith(href);
+ 
+   return (
+     <Link href={href}>
+       <span
+         className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer select-none
+           ${active
+             ? "text-white bg-white/10"
+             : "text-white/50 hover:text-white/80 hover:bg-white/5"
+           }`}
+       >
+         <Icon className="w-4 h-4 shrink-0" />
+         {label}
+         {active && (
+           <motion.div
+             layoutId="admin-nav-indicator"
+             className="absolute inset-0 rounded-lg border border-white/10 bg-white/[0.07]"
+             style={{ zIndex: -1 }}
+             transition={{ type: "spring", stiffness: 400, damping: 30 }}
+           />
+         )}
+       </span>
+     </Link>
+   );
+ }
+ 
+ export function AdminLayout({ children }: { children: React.ReactNode }) {
+   const { user, logout } = useAuth();
++  const [, setLocation] = useLocation();
++  const [theme] = useState(localStorage.getItem("hirenext_theme") || "system");
++  useSystemTheme(theme);
+ 
+   const initials = user?.name
+-    ? user.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
++    ? user.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+     : "A";
+ 
+   return (
+     <div className="min-h-screen bg-background flex flex-col">
+       {/* Admin Navbar */}
+       <header className="h-16 shrink-0 border-b border-white/[0.07] bg-[#0d0c14]/80 backdrop-blur-xl sticky top-0 z-40">
+         <div className="h-full px-4 flex items-center gap-4 max-w-[1600px] mx-auto">
+           {/* Logo + badge */}
+           <div className="flex items-center gap-2 shrink-0">
+             <Logo className="h-7 w-auto" />
+             <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider">
+               <ShieldAlert className="w-3 h-3" />
+               Admin
+             </span>
+           </div>
+ 
+           <ChevronRight className="w-3.5 h-3.5 text-white/20 shrink-0" />
+ 
+           {/* Nav links — horizontally scrollable on small screens */}
+           <nav className="flex items-center gap-1 overflow-x-auto scrollbar-none flex-1 min-w-0">
+             {adminNavItems.map(item => (
+               <AdminNavItem key={item.href} {...item} />
+             ))}
+           </nav>
+ 
+           {/* Right side: avatar + logout */}
+           <div className="flex items-center gap-2 shrink-0">
+             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/60 to-purple-600/60 flex items-center justify-center text-xs font-bold text-white select-none border border-white/10">
+               {initials}
+             </div>
+             <button
+-              onClick={logout}
++              onClick={async () => { await logout(); setLocation("/login"); }}
+               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/40 hover:text-white hover:bg-white/5 transition-all"
+             >
+               <LogOut className="w-4 h-4" />
+               <span className="hidden sm:inline">Logout</span>
+             </button>
+           </div>
+         </div>
+       </header>
+ 
+       {/* Page content */}
+       <main className="flex-1 overflow-y-auto">
+         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-8">
+           {children}
+         </div>
+       </main>
+     </div>
+   );
+ }
+diff --git a/artifacts/hirenextai/src/components/layout/DashboardLayout.tsx b/artifacts/hirenextai/src/components/layout/DashboardLayout.tsx
+index 49cd12f664b47f8ff0b27bb4b3a721f6cf270dca..82aedae858d345a21c4b8aa4c61cc203c69cbc40 100644
+--- a/artifacts/hirenextai/src/components/layout/DashboardLayout.tsx
++++ b/artifacts/hirenextai/src/components/layout/DashboardLayout.tsx
+@@ -1,100 +1,96 @@
+ import { Link, useLocation } from "wouter";
+ import { useAuth, useAuthStore } from "@/hooks/use-auth";
+ import { useGetAIUsage, useGetSubscription, useGetProfile } from "@workspace/api-client-react";
+ import {
+   Briefcase, FileText, Sparkles, User as UserIcon,
+   CreditCard, LogOut, Menu, X, Crown, ChevronDown, ScrollText, Building2, Plus, Users, Bell, Bookmark, ShieldAlert, Zap, BarChart3, MessageCircle
+ } from "lucide-react";
+ import { useState, useEffect, useRef, useCallback } from "react";
+ import { motion, AnimatePresence } from "framer-motion";
+ import ProfileCompletionPopup, { shouldShowProfilePopup, markProfilePopupShown } from "@/components/ProfileCompletionPopup";
+ import { DemoModeBanner } from "@/components/DemoModeBanner";
+ import { AuthPromptModal } from "@/components/AuthPromptModal";
+ import { Logo } from "@/components/Logo";
+ import { useDemoStore } from "@/store/demo";
+ import { useToast } from "@/hooks/use-toast";
+ import { FloatingChat } from "@/components/FloatingChat";
++import { useSystemTheme } from "@/hooks/use-system-theme";
++import { LANGUAGE_OPTIONS, tForLanguage } from "@/lib/i18n";
+ 
+ const PAGE_TITLES: Record<string, string> = {
+   jobs: "Find Jobs",
+   applications: "My Applications",
+   "ai-tools": "AI Tools",
+   chat: "AI Career Chat",
+   resume: "AI Resume Studio",
+   profile: "Profile",
+   subscription: "Subscription",
+   recruiter: "Recruiter Dashboard",
+   "post-job": "Post a Job",
+   "job-alerts": "Job Alerts",
+   "saved-jobs": "Saved Jobs",
+ };
+ 
+ const jobSeekerNavItems = [
+   { href: "/dashboard/jobs", icon: Briefcase, label: "Find Jobs" },
+   { href: "/dashboard/applications", icon: FileText, label: "Applications" },
+   { href: "/dashboard/saved-jobs", icon: Bookmark, label: "Saved Jobs" },
+   { href: "/dashboard/ai-tools", icon: Sparkles, label: "AI Tools" },
+   { href: "/dashboard/resume", icon: ScrollText, label: "Resume Studio" },
+   { href: "/dashboard/job-alerts", icon: Bell, label: "Job Alerts" },
+   { href: "/dashboard/profile", icon: UserIcon, label: "Profile" },
+ ];
+ 
+ const recruiterNavItems = [
+   { href: "/dashboard/recruiter", icon: Building2, label: "Dashboard", exact: true },
+   { href: "/dashboard/recruiter/post-job", icon: Plus, label: "Post Job" },
+   { href: "/dashboard/recruiter/boost-jobs", icon: Zap, label: "Boost Jobs" },
+   { href: "/dashboard/recruiter/analytics", icon: BarChart3, label: "Analytics" },
+   { href: "/dashboard/recruiter/profile", icon: UserIcon, label: "Company Profile" },
+   { href: "/dashboard/subscription", icon: CreditCard, label: "Subscription" },
+ ];
+ 
+ const API = import.meta.env.VITE_API_URL ?? "/api";
+-const I18N = {
+-  en: { account: "Account", billing: "Billing", support: "Support", theme: "Theme", language: "Language" },
+-  hi: { account: "अकाउंट", billing: "बिलिंग", support: "सपोर्ट", theme: "थीम", language: "भाषा" },
+-} as const;
+-
+ export function DashboardLayout({ children }: { children: React.ReactNode }) {
+   const [location, setLocation] = useLocation();
+   const { user, logout, token } = useAuth();
+   const { isDemoMode, demoExpired, disableDemo, clearExpired } = useDemoStore();
+   const isAnyDemoMode = isDemoMode || demoExpired;
+   const { toast } = useToast();
+   const isRecruiter = !isAnyDemoMode && user?.role === "recruiter";
+   const isAdmin = !isAnyDemoMode && user?.role === "admin";
+   const navItems = isRecruiter ? recruiterNavItems : jobSeekerNavItems;
+   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+   const [showProfilePopup, setShowProfilePopup] = useState(false);
+   const [profilePopupShown, setProfilePopupShown] = useState(false);
+   const [dropdownOpen, setDropdownOpen] = useState(false);
+   const dropdownRef = useRef<HTMLDivElement>(null);
+   const remindTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   const [unreadAlerts, setUnreadAlerts] = useState(0);
+   const [language, setLanguage] = useState(localStorage.getItem("hirenext_lang") || "en");
+   const [theme, setTheme] = useState(localStorage.getItem("hirenext_theme") || "system");
+-  const t = language === "hi" ? I18N.hi : I18N.en;
+ 
+   const { data: usage } = useGetAIUsage();
+   const { data: subscription } = useGetSubscription();
+   const { data: profile, isLoading: isProfileLoading } = useGetProfile();
+ 
+   const profileRef = useRef(profile);
+   profileRef.current = profile;
+ 
+   const lowCreditWarnedRef = useRef(false);
+ 
+   // Poll unread alert count every 2 minutes (skip for demo/recruiter)
+   const fetchUnreadAlerts = useCallback(async () => {
+     if (isAnyDemoMode || isRecruiter || !token) return;
+     try {
+       const res = await fetch(`${API}/alerts/unread-count`, {
+         headers: { Authorization: `Bearer ${token}` },
+       });
+       if (res.ok) {
+         const { count } = await res.json();
+         setUnreadAlerts(count);
+       }
+     } catch {}
+   }, [token, isAnyDemoMode, isRecruiter]);
+ 
+   useEffect(() => {
+@@ -136,120 +132,115 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
+     // Never show popup for recruiters, admins, or demo sessions
+     if (isRecruiter || isAdmin || isAnyDemoMode) return;
+     if (!isProfileLoading && profile) {
+       if (profile.completionPct >= 60) {
+         setShowProfilePopup(false);
+         if (remindTimerRef.current) {
+           clearTimeout(remindTimerRef.current);
+           remindTimerRef.current = null;
+         }
+       } else if (!profilePopupShown && shouldShowProfilePopup(profile, isDemoMode, user?.role)) {
+         setShowProfilePopup(true);
+         setProfilePopupShown(true);
+         markProfilePopupShown();
+       }
+     }
+   }, [isDemoMode, isProfileLoading, profile, isRecruiter, isAdmin, isAnyDemoMode]);
+ 
+   useEffect(() => {
+     return () => {
+       if (remindTimerRef.current) clearTimeout(remindTimerRef.current);
+     };
+   }, []);
+ 
+   useEffect(() => {
+     localStorage.setItem("hirenext_lang", language);
+-    document.documentElement.lang = language === "hi" ? "hi" : "en";
++    document.documentElement.lang = language;
+   }, [language]);
+ 
+   useEffect(() => {
+     localStorage.setItem("hirenext_theme", theme);
+-    const root = document.documentElement;
+-    if (theme === "dark") root.classList.add("dark");
+-    else if (theme === "light") root.classList.remove("dark");
+-    else {
+-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+-      root.classList.toggle("dark", prefersDark);
+-    }
+   }, [theme]);
+ 
++  useSystemTheme(theme);
++
+   const handlePopupCompleteNow = () => {
+     setShowProfilePopup(false);
+     if (remindTimerRef.current) {
+       clearTimeout(remindTimerRef.current);
+       remindTimerRef.current = null;
+     }
+   };
+ 
+   const handlePopupRemindLater = () => {
+     setShowProfilePopup(false);
+     // localStorage cooldown is already set when popup opened; nothing more needed here
+     if (remindTimerRef.current) {
+       clearTimeout(remindTimerRef.current);
+       remindTimerRef.current = null;
+     }
+   };
+ 
+ 
+   useEffect(() => {
+     const handleClickOutside = (e: MouseEvent) => {
+       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+         setDropdownOpen(false);
+       }
+     };
+     document.addEventListener("mousedown", handleClickOutside);
+     return () => document.removeEventListener("mousedown", handleClickOutside);
+   }, []);
+ 
+ 
+   const handleExitDemo = () => {
+     setDropdownOpen(false);
+     setIsMobileMenuOpen(false);
+     clearExpired();
+     disableDemo();
+     // Clear any stale auth token so PublicRoutes don't misbehave after demo
+     useAuthStore.getState().clearStore();
+     toast({ title: "Demo session ended", description: "Create a free account to save your progress.", duration: 3000 });
+-    setLocation("/");
++    setLocation("/login");
+   };
+ 
+   const handleLogout = async () => {
+     setDropdownOpen(false);
+     setIsMobileMenuOpen(false);
+     await logout();
+     clearExpired();
+     disableDemo();
+     toast({ title: "Logged out successfully", description: "See you next time!", duration: 3000 });
+-    setLocation("/");
++    setLocation("/login");
+   };
+ 
+   const currentPage = location.split("/").pop() || "jobs";
+   const pageTitle = PAGE_TITLES[currentPage] || "Dashboard";
+   const plan = subscription?.plan ?? user?.subscriptionPlan ?? "free";
+   const displayName = isAnyDemoMode ? "Demo User" : (user?.name ?? "User");
+   const displayEmail = isAnyDemoMode ? "demo@hirenextai.com" : (user?.email ?? "");
+-  const initials = displayName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
++  const initials = displayName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+ 
+   const PlanBadge = ({ size = "sm" }: { size?: "xs" | "sm" }) => {
+     const colors: Record<string, string> = {
+       free: "bg-white/5 text-white/60 border-white/10",
+       pro: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+       premium: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+     };
+     return (
+       <span className={`px-2 py-0.5 rounded-md border font-semibold uppercase tracking-wider ${size === "xs" ? "text-[10px]" : "text-xs"} ${colors[plan] || colors.free}`}>
+         {plan === "premium" && <Crown className="w-2.5 h-2.5 inline mr-1" />}
+         {plan}
+       </span>
+     );
+   };
+ 
+   return (
+     <div className="flex flex-col h-screen overflow-hidden">
+       <DemoModeBanner />
+       <AuthPromptModal />
+ 
+       {showProfilePopup && !isDemoMode && !isRecruiter && !isAdmin && profile && (
+         <ProfileCompletionPopup
+           profile={profile}
+           user={user}
+           onCompleteNow={handlePopupCompleteNow}
+@@ -398,120 +389,121 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
+                               <span className="hidden">
+                                 placeholder
+                               </span>
+                             )}
+                           </Link>
+                         );
+                       })}
+                       {isAdmin && (
+                         <Link
+                           href="/dashboard/admin"
+                           onClick={() => setDropdownOpen(false)}
+                           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors group w-full mt-1 ${
+                             location.startsWith("/dashboard/admin")
+                               ? "bg-red-500/[0.15] text-red-400"
+                               : "hover:bg-white/[0.09] text-white/80 hover:text-white"
+                           }`}
+                         >
+                           <ShieldAlert className={`w-4 h-4 ${location.startsWith("/dashboard/admin") ? "text-red-400" : "text-white/50 group-hover:text-white/80"}`} />
+                           <span className="text-sm font-medium flex-1">Admin Panel</span>
+                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold uppercase tracking-wide">Admin</span>
+                         </Link>
+                       )}
+                     </div>
+ 
+                     <div className="p-2 border-b border-white/[0.07]">
+-                      <p className="text-[10px] text-white/40 uppercase tracking-wider px-3 py-1.5 font-semibold">{t.account}</p>
++                      <p className="text-[10px] text-white/40 uppercase tracking-wider px-3 py-1.5 font-semibold">{tForLanguage(language, "account")}</p>
+                       <Link href="/dashboard/subscription" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] text-white/80 hover:text-white">
+                         <CreditCard className="w-4 h-4 text-white/50" />
+-                        <span className="text-sm font-medium flex-1">{t.billing}</span>
++                        <span className="text-sm font-medium flex-1">{tForLanguage(language, "billing")}</span>
+                       </Link>
+                       <Link href="/dashboard/support" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] text-white/80 hover:text-white">
+                         <MessageCircle className="w-4 h-4 text-white/50" />
+-                        <span className="text-sm font-medium flex-1">{t.support}</span>
++                        <span className="text-sm font-medium flex-1">{tForLanguage(language, "support")}</span>
+                       </Link>
+                     </div>
+ 
+                     <div className="p-3 border-b border-white/[0.07] space-y-2">
+                       <div className="flex items-center justify-between gap-2">
+-                        <span className="text-xs text-white/50">{t.theme}</span>
+-                        <select value={theme} onChange={(e) => setTheme(e.target.value)} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs">
++                        <span className="text-xs text-white/50">{tForLanguage(language, "theme")}</span>
++                        <select value={theme} onChange={(e) => setTheme(e.target.value)} className="bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
+                           <option value="light">Light</option>
+                           <option value="dark">Dark</option>
+                           <option value="system">System</option>
+                         </select>
+                       </div>
+                       <div className="flex items-center justify-between gap-2">
+-                        <span className="text-xs text-white/50">{t.language}</span>
+-                        <select value={language} onChange={(e) => setLanguage(e.target.value)} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs">
+-                          <option value="en">English</option>
+-                          <option value="hi">Hindi</option>
++                        <span className="text-xs text-white/50">{tForLanguage(language, "language")}</span>
++                        <select value={language} onChange={(e) => setLanguage(e.target.value)} className="bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
++                          {LANGUAGE_OPTIONS.map((lang) => (
++                            <option key={lang.code} value={lang.code}>{lang.label}</option>
++                          ))}
+                         </select>
+                       </div>
+                     </div>
+ 
+ 
+                     {/* Upgrade CTA */}
+                     {!isAnyDemoMode && plan === "free" && (
+                       <div className="p-3 border-b border-white/[0.07]">
+                         <Link
+                           href="/dashboard/subscription"
+                           onClick={() => setDropdownOpen(false)}
+                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 hover:border-primary/50 transition-all group"
+                         >
+                           <Crown className="w-4 h-4 text-amber-400" />
+                           <div className="flex-1">
+                             <p className="text-sm font-semibold text-white">Upgrade Plan</p>
+                             <p className="text-[11px] text-white/40">Unlock Recruiter Outreach, Interview Prep & more</p>
+                           </div>
+                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/30 text-primary border border-primary/30 font-semibold">Pro</span>
+                         </Link>
+                       </div>
+                     )}
+ 
+                     {/* Exit Demo (demo sessions only) + Logout (real auth only) — sticky at bottom */}
+                     <div className="sticky bottom-0 px-2 pt-1 pb-2 border-t border-white/[0.07] space-y-0.5" style={{ background: "hsl(240 32% 8% / 0.98)" }}>
+                       {isDemoMode && (
+                         <button
+                           onClick={handleExitDemo}
+                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/[0.12] active:bg-red-500/20 transition-colors w-full"
+                         >
+                           <LogOut className="w-4 h-4 text-red-400" />
+                           <div className="flex-1 text-left">
+                             <span className="text-sm font-semibold text-red-400 block">Exit Demo</span>
+                             <span className="text-[10px] text-white/40">Return to home page</span>
+                           </div>
+                         </button>
+                       )}
+                       {token && !isDemoMode && (
+                         <button
+                           onClick={handleLogout}
+                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/[0.12] active:bg-red-500/20 transition-colors w-full"
+                         >
+                           <LogOut className="w-4 h-4 text-red-400" />
+                           <div className="flex-1 text-left">
+-                            <span className="text-sm font-semibold text-red-400 block">Logout</span>
++                            <span className="text-sm font-semibold text-red-400 block">{tForLanguage(language, "logout")}</span>
+                             <span className="text-[10px] text-white/40">Clear session and return home</span>
+                           </div>
+                         </button>
+                       )}
+                     </div>
+                   </motion.div>
+                 )}
+               </AnimatePresence>
+               </div>{/* /dropdownRef */}
+ 
+               {/* Mobile Hamburger — only on very small screens */}
+               <button
+                 onClick={() => setIsMobileMenuOpen(true)}
+                 className="sm:hidden p-1.5 text-white/70 hover:text-white hover:bg-white/[0.09] rounded-lg transition-colors"
+               >
+                 <Menu className="w-5 h-5" />
+               </button>
+             </div>{/* /right section */}
+           </div>{/* /max-width wrapper */}
+         </header>
+ 
+         {/* Mobile Drawer */}
+         <AnimatePresence>
+           {isMobileMenuOpen && (
+             <>
+diff --git a/artifacts/hirenextai/src/components/layout/Navbar.tsx b/artifacts/hirenextai/src/components/layout/Navbar.tsx
+index 522c323f18945b1d5b3ff0f942a9ed35a94119cc..5b2d4ef9cb2457fdffe455fca97ed0332b650d63 100644
+--- a/artifacts/hirenextai/src/components/layout/Navbar.tsx
++++ b/artifacts/hirenextai/src/components/layout/Navbar.tsx
+@@ -1,45 +1,66 @@
+-import { Link } from "wouter";
++import { Link, useLocation } from "wouter";
+ import { motion, AnimatePresence } from "framer-motion";
+ import { Menu, X } from "lucide-react";
+ import { useAuth } from "@/hooks/use-auth";
+ import { Logo } from "@/components/Logo";
+ import { useState } from "react";
+ 
+ export function Navbar() {
+   const { isAuthenticated } = useAuth();
+   const [mobileOpen, setMobileOpen] = useState(false);
++  const [location] = useLocation();
++
++  const routeNameMap: Record<string, string> = {
++    "/": "Home",
++    "/features": "Features",
++    "/pricing": "Pricing",
++    "/contact": "Contact",
++    "/about": "About",
++    "/help-center": "Help Center",
++    "/privacy-policy": "Privacy Policy",
++    "/terms": "Terms",
++    "/cookies": "Cookies",
++    "/login": "Sign In",
++    "/register": "Register",
++    "/dashboard": "Dashboard",
++  };
++
++  const currentPageName =
++    routeNameMap[location] ||
++    (location.startsWith("/dashboard") ? "Dashboard" : "HirenextAI");
+ 
+   return (
+     <motion.nav
+       initial={{ y: -20, opacity: 0 }}
+       animate={{ y: 0, opacity: 1 }}
+       className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-background/50 backdrop-blur-xl"
+     >
+       <div className="max-w-7xl mx-auto px-6 h-[76px] md:h-24 flex items-center justify-between">
+-        <Link href="/">
++        <Link href="/" className="flex flex-col items-start">
+           <Logo size="sm" />
++          <span className="text-[11px] text-muted-foreground mt-0.5">{currentPageName}</span>
+         </Link>
+ 
+         {/* Desktop Links */}
+         <div className="hidden md:flex items-center gap-8">
+           <Link href="/features" className="text-sm font-medium text-white/70 hover:text-white transition-colors">Features</Link>
+           <Link href="/pricing" className="text-sm font-medium text-white/70 hover:text-white transition-colors">Pricing</Link>
+ 
+           <div className="h-6 w-px bg-white/10" />
+ 
+           {isAuthenticated ? (
+             <Link href="/dashboard" className="btn-primary py-2.5 px-5 text-sm">
+               Go to Dashboard
+             </Link>
+           ) : (
+             <div className="flex items-center gap-4">
+               <Link href="/login" className="text-sm font-medium text-white hover:text-primary transition-colors">
+                 Sign In
+               </Link>
+               <Link href="/register" className="btn-primary py-2.5 px-5 text-sm hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all">
+                 Get Started
+               </Link>
+             </div>
+           )}
+         </div>
+ 
+diff --git a/artifacts/hirenextai/src/components/layout/RecruiterLayout.tsx b/artifacts/hirenextai/src/components/layout/RecruiterLayout.tsx
+index de18c66b78345cae14aa4574ed1f5337d0510992..3fad1f48f44be08ce6280abfe0e35ab10ed2a1f4 100644
+--- a/artifacts/hirenextai/src/components/layout/RecruiterLayout.tsx
++++ b/artifacts/hirenextai/src/components/layout/RecruiterLayout.tsx
+@@ -1,109 +1,114 @@
+ import { Link, useLocation } from "wouter";
+-import { useAuth, useAuthStore } from "@/hooks/use-auth";
++import { useAuth } from "@/hooks/use-auth";
+ import {
+-  LayoutDashboard, Plus, Briefcase, Users, Zap, CreditCard,
++  LayoutDashboard, Plus, Zap, CreditCard,
+   BarChart3, LogOut, Building2, ChevronRight,
+ } from "lucide-react";
+ import { motion } from "framer-motion";
+ import { Logo } from "@/components/Logo";
++import { useSystemTheme } from "@/hooks/use-system-theme";
++import { useState } from "react";
+ 
+ const recruiterNavItems = [
+   { href: "/dashboard/recruiter", icon: LayoutDashboard, label: "Dashboard", exact: true },
+   { href: "/dashboard/recruiter/post-job", icon: Plus, label: "Post Job" },
+   { href: "/dashboard/recruiter/boost-jobs", icon: Zap, label: "Boost Jobs" },
+   { href: "/dashboard/recruiter/analytics", icon: BarChart3, label: "Analytics" },
+   { href: "/dashboard/recruiter/profile", icon: Building2, label: "Profile" },
+   { href: "/dashboard/recruiter/subscription", icon: CreditCard, label: "Plans" },
+ ];
+ 
+ function RecruiterNavItem({
+   href,
+   icon: Icon,
+   label,
+   exact,
+ }: {
+   href: string;
+   icon: React.ComponentType<{ className?: string }>;
+   label: string;
+   exact?: boolean;
+ }) {
+   const [location] = useLocation();
+   const active = exact ? location === href : location.startsWith(href);
+ 
+   return (
+     <Link href={href}>
+       <span
+         className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all whitespace-nowrap cursor-pointer select-none
+           ${active
+             ? "text-white bg-white/10"
+             : "text-white/50 hover:text-white/80 hover:bg-white/5"
+           }`}
+       >
+         <Icon className="w-3.5 h-3.5 shrink-0" />
+         {label}
+         {active && (
+           <motion.div
+             layoutId="recruiter-nav-indicator"
+             className="absolute inset-0 rounded-lg border border-white/10 bg-white/[0.07]"
+             style={{ zIndex: -1 }}
+             transition={{ type: "spring", stiffness: 400, damping: 30 }}
+           />
+         )}
+       </span>
+     </Link>
+   );
+ }
+ 
+ export function RecruiterLayout({ children }: { children: React.ReactNode }) {
+   const { user, logout } = useAuth();
++  const [, setLocation] = useLocation();
++  const [theme] = useState(localStorage.getItem("hirenext_theme") || "system");
++  useSystemTheme(theme);
+ 
+   const initials = user?.name
+-    ? user.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
++    ? user.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+     : "R";
+ 
+   return (
+     <div className="min-h-screen bg-background flex flex-col">
+       <header className="h-14 shrink-0 border-b border-white/[0.07] bg-[#0d0c14]/80 backdrop-blur-xl sticky top-0 z-40">
+         <div className="h-full max-w-[1200px] mx-auto px-4 flex items-center gap-2">
+           {/* Logo + recruiter badge */}
+           <div className="flex items-center gap-2 shrink-0 mr-1">
+             <Logo className="h-7 w-auto" />
+             <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider">
+               <Building2 className="w-3 h-3" />
+               Recruiter
+             </span>
+           </div>
+ 
+           <ChevronRight className="w-3.5 h-3.5 text-white/20 shrink-0" />
+ 
+           {/* Nav links — scrollable */}
+           <nav className="flex items-center gap-0.5 overflow-x-auto scrollbar-none flex-1 min-w-0">
+             {recruiterNavItems.map(item => (
+               <RecruiterNavItem key={item.href} {...item} />
+             ))}
+           </nav>
+ 
+           {/* Right: avatar + logout */}
+           <div className="flex items-center gap-2 shrink-0">
+             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/60 to-indigo-600/60 flex items-center justify-center text-xs font-bold text-white select-none border border-white/10">
+               {initials}
+             </div>
+             <button
+-              onClick={logout}
++              onClick={async () => { await logout(); setLocation("/login"); }}
+               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/40 hover:text-white hover:bg-white/5 transition-all"
+             >
+               <LogOut className="w-4 h-4" />
+               <span className="hidden sm:inline">Logout</span>
+             </button>
+           </div>
+         </div>
+       </header>
+ 
+       <main className="flex-1 overflow-y-auto">
+         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8">
+           {children}
+         </div>
+       </main>
+     </div>
+   );
+ }
+diff --git a/artifacts/hirenextai/src/hooks/use-auth.ts b/artifacts/hirenextai/src/hooks/use-auth.ts
+index 0411a0a7dfc7cfef9f7c7304217d099e16da379c..1922aea05a4c54f83534d1589e265d45d9832bf1 100644
+--- a/artifacts/hirenextai/src/hooks/use-auth.ts
++++ b/artifacts/hirenextai/src/hooks/use-auth.ts
+@@ -43,50 +43,51 @@ function clearAllAuthStorage() {
+       }
+     });
+   } catch (_) {}
+ }
+ 
+ async function callServerLogout(token: string | null) {
+   if (!token) return;
+   try {
+     const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+     await fetch(`${base}/api/auth/logout`, {
+       method: "POST",
+       headers: { Authorization: `Bearer ${token}` },
+     });
+   } catch (_) {
+     // fire-and-forget — network errors must not block client logout
+   }
+ }
+ 
+ export function useAuth() {
+   const { token, setToken, clearStore } = useAuthStore();
+   const queryClient = useQueryClient();
+   const [, setLocation] = useLocation();
+ 
+   const { data: user, isLoading: isUserLoading, error } = useGetMe({
+     query: {
++      queryKey: getGetMeQueryKey(),
+       enabled: !!token,
+       retry: false,
+       staleTime: 30000,
+     }
+   });
+ 
+   const loginMutation = useLogin({
+     mutation: {
+       onSuccess: (data) => {
+         // Always clear any leftover demo keys so a real token is never masked by isDemoMode
+         useDemoStore.getState().disableDemo();
+         useDemoStore.getState().clearExpired();
+         setToken(data.token);
+         queryClient.setQueryData(getGetMeQueryKey(), data.user);
+         // Admin → admin panel; recruiter → recruiter dashboard; job seeker → jobs
+         const role = data.user.role;
+         setLocation(role === "admin" ? "/dashboard/admin" : role === "recruiter" ? "/dashboard/recruiter" : "/dashboard/jobs");
+       }
+     }
+   });
+ 
+   const registerMutation = useRegister({
+     mutation: {
+       onSuccess: (data) => {
+         // Same: clear demo state on register so fresh real session starts clean
+diff --git a/artifacts/hirenextai/src/hooks/use-system-theme.ts b/artifacts/hirenextai/src/hooks/use-system-theme.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..8d5b29e3f2f721a129256c7e87ceb34a99d75bca
+--- /dev/null
++++ b/artifacts/hirenextai/src/hooks/use-system-theme.ts
+@@ -0,0 +1,20 @@
++import { useEffect, useState } from "react";
++
++export function useSystemTheme(theme: string) {
++  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(
++    typeof window !== "undefined" ? window.matchMedia("(prefers-color-scheme: dark)").matches : false,
++  );
++
++  useEffect(() => {
++    const media = window.matchMedia("(prefers-color-scheme: dark)");
++    const onChange = (event: MediaQueryListEvent) => setSystemPrefersDark(event.matches);
++    media.addEventListener("change", onChange);
++    return () => media.removeEventListener("change", onChange);
++  }, []);
++
++  useEffect(() => {
++    const root = document.documentElement;
++    const dark = theme === "dark" || (theme === "system" && systemPrefersDark);
++    root.classList.toggle("dark", dark);
++  }, [theme, systemPrefersDark]);
++}
+diff --git a/artifacts/hirenextai/src/lib/i18n.ts b/artifacts/hirenextai/src/lib/i18n.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa28367b0d1ceecdfa2a6c7d9c5985c2b4b96652
+--- /dev/null
++++ b/artifacts/hirenextai/src/lib/i18n.ts
+@@ -0,0 +1,24 @@
++export const LANGUAGE_OPTIONS = [
++  { code: "en", label: "English" },
++  { code: "hi", label: "Hindi" },
++  { code: "bn", label: "Bengali" },
++  { code: "ta", label: "Tamil" },
++  { code: "te", label: "Telugu" },
++  { code: "mr", label: "Marathi" },
++] as const;
++
++const resources = {
++  en: { account: "Account", billing: "Billing", support: "Support", theme: "Theme", language: "Language", logout: "Logout" },
++  hi: { account: "अकाउंट", billing: "बिलिंग", support: "सपोर्ट", theme: "थीम", language: "भाषा", logout: "लॉग आउट" },
++  bn: { account: "অ্যাকাউন্ট", billing: "বিলিং", support: "সাপোর্ট", theme: "থিম", language: "ভাষা", logout: "লগ আউট" },
++  ta: { account: "கணக்கு", billing: "பில்லிங்", support: "ஆதரவு", theme: "தீம்", language: "மொழி", logout: "வெளியேறு" },
++  te: { account: "ఖాతా", billing: "బిల్లింగ్", support: "సపోర్ట్", theme: "థీమ్", language: "భాష", logout: "లాగ్ఔట్" },
++  mr: { account: "खाते", billing: "बिलिंग", support: "सपोर्ट", theme: "थीम", language: "भाषा", logout: "लॉग आउट" },
++} as const;
++
++export type TranslationKey = keyof (typeof resources)["en"];
++
++export function tForLanguage(language: string, key: TranslationKey): string {
++  const safeLang = (language in resources ? language : "en") as keyof typeof resources;
++  return resources[safeLang][key] || resources.en[key];
++}
+diff --git a/artifacts/hirenextai/src/pages/Auth.tsx b/artifacts/hirenextai/src/pages/Auth.tsx
+index 803c17c5a11ae6fd74b86bc6d07a3e6ed6c24c7c..8f568ccecd7bc85e4b2fdf3d0f127c327bc4cc16 100644
+--- a/artifacts/hirenextai/src/pages/Auth.tsx
++++ b/artifacts/hirenextai/src/pages/Auth.tsx
+@@ -46,50 +46,51 @@ function InputRow({
+         value={value}
+         onChange={onChange}
+         placeholder={placeholder}
+         autoFocus={autoFocus}
+         className="flex-1 bg-transparent text-white placeholder:text-white/25 focus:outline-none text-sm min-w-0 leading-none"
+       />
+     </div>
+   );
+ }
+ 
+ 
+ export default function Auth() {
+   const { login, register, isLoggingIn, isRegistering } = useAuth();
+   const { enableDemo } = useDemoStore();
+   const [, setLocation] = useLocation();
+   const [mode, setMode] = useState<Mode>("signin");
+   const [emailStep, setEmailStep] = useState<EmailStep>("idle");
+   const [phoneStep, setPhoneStep] = useState<PhoneStep>("idle");
+   const [role, setRole] = useState<Role>("job_seeker");
+ 
+   const [name, setName] = useState("");
+   const [email, setEmail] = useState("");
+   const [password, setPassword] = useState("");
+   const [phone, setPhone] = useState("");
+   const [otp, setOtp] = useState("");
++  const [otpHint, setOtpHint] = useState<string | null>(null);
+   const [error, setError] = useState("");
+   const [googleLoading, setGoogleLoading] = useState(false);
+   const [isGoogleReady, setIsGoogleReady] = useState(false);
+   const API = import.meta.env.VITE_API_URL ?? "/api";
+   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+ 
+   useEffect(() => {
+     if (!googleClientId) return;
+     const script = document.createElement("script");
+     script.src = "https://accounts.google.com/gsi/client";
+     script.async = true;
+     script.defer = true;
+     script.onload = () => setIsGoogleReady(true);
+     document.head.appendChild(script);
+     return () => { document.head.removeChild(script); };
+   }, [googleClientId]);
+ 
+   const reset = (newMode: Mode) => {
+     setMode(newMode);
+     setEmailStep("idle");
+     setPhoneStep("idle");
+     setRole("job_seeker");
+     setError("");
+     setName(""); setEmail(""); setPassword(""); setPhone(""); setOtp("");
+   };
+@@ -124,63 +125,89 @@ export default function Auth() {
+         if (!tokenResponse?.access_token || tokenResponse.error) {
+           setGoogleLoading(false);
+           setError("Google authentication failed. Please try again.");
+           return;
+         }
+         try {
+           const res = await fetch(`${API}/auth/google`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ accessToken: tokenResponse.access_token, role }),
+           });
+           const data = await res.json();
+           if (!res.ok) throw new Error(data?.message || "Google login failed");
+           localStorage.setItem("hirenext_token", data.token);
+           window.location.href = data.user?.role === "admin" ? "/dashboard/admin" : data.user?.role === "recruiter" ? "/dashboard/recruiter" : "/dashboard/jobs";
+         } catch (e: any) {
+           setError(e?.message || "Google login failed. Try email sign in.");
+         } finally {
+           setGoogleLoading(false);
+         }
+       },
+     });
+     tokenClient.requestAccessToken();
+   };
+ 
+-  const handleSendOtp = (e: React.FormEvent) => {
++  const handleSendOtp = async (e: React.FormEvent) => {
+     e.preventDefault();
+     if (!phone || phone.replace(/\D/g, "").length < 10) {
+       setError("Enter a valid 10-digit phone number.");
+       return;
+     }
+     setError("");
+-    setPhoneStep("enter_otp");
++    setOtpHint(null);
++    try {
++      const res = await fetch(`${API}/auth/phone/request-otp`, {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify({ phone, role }),
++      });
++      const data = await res.json();
++      if (!res.ok) throw new Error(data?.message || "Failed to send OTP.");
++      setPhoneStep("enter_otp");
++      if (data?.otp) setOtpHint(`Dev OTP: ${data.otp}`);
++    } catch (err: any) {
++      setError(err?.message || "Failed to send OTP.");
++    }
+   };
+ 
+-  const handleOtpSubmit = (e: React.FormEvent) => {
++  const handleOtpSubmit = async (e: React.FormEvent) => {
+     e.preventDefault();
+-    setError("Phone OTP login is coming soon. Please use email or try the demo.");
++    setError("");
++    try {
++      const res = await fetch(`${API}/auth/phone/verify-otp`, {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify({ phone, otp, role }),
++      });
++      const data = await res.json();
++      if (!res.ok) throw new Error(data?.message || "OTP verification failed");
++      localStorage.setItem("hirenext_token", data.token);
++      window.location.href = data.user?.role === "admin" ? "/dashboard/admin" : data.user?.role === "recruiter" ? "/dashboard/recruiter" : "/dashboard/jobs";
++    } catch (err: any) {
++      setError(err?.message || "OTP verification failed");
++    }
+   };
+ 
+   const handleDemo = () => {
+     // Demo mode is entirely client-side — no API credentials needed.
+     enableDemo();
+     setLocation("/dashboard/jobs");
+   };
+ 
+   const isLoading = isLoggingIn || isRegistering;
+ 
+   return (
+     <div className="min-h-screen bg-[#09090f] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+       {/* Background glows */}
+       <div className="absolute inset-0 pointer-events-none">
+         <div className="absolute top-[20%] left-[15%] w-[500px] h-[500px] bg-indigo-600/[0.12] rounded-full blur-[120px]" />
+         <div className="absolute bottom-[15%] right-[10%] w-[400px] h-[400px] bg-purple-600/[0.08] rounded-full blur-[100px]" />
+         <div className="absolute top-[60%] left-[60%] w-[300px] h-[300px] bg-violet-500/[0.06] rounded-full blur-[80px]" />
+       </div>
+ 
+       {/* Logo above card */}
+       <motion.div
+         initial={{ opacity: 0, y: -8 }}
+         animate={{ opacity: 1, y: 0 }}
+         transition={{ duration: 0.4 }}
+         className="mb-8 relative z-10"
+@@ -225,50 +252,68 @@ export default function Auth() {
+               </h1>
+               <p className="text-white/40 text-sm mt-1.5">
+                 {mode === "signin"
+                   ? "Sign in to your AI career assistant"
+                   : "Your AI-powered job search starts here"}
+               </p>
+             </div>
+ 
+             {/* Error */}
+             <AnimatePresence>
+               {error && (
+                 <motion.div
+                   key="error"
+                   initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                   animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
+                   exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                   className="bg-red-500/10 border border-red-500/20 text-red-300 px-4 py-3 rounded-xl text-sm overflow-hidden"
+                 >
+                   {error}
+                 </motion.div>
+               )}
+             </AnimatePresence>
+ 
+             <div className="space-y-3">
+ 
++              {/* Role selector for sign in/up context */}
++              <div className="grid grid-cols-2 gap-2">
++                <button
++                  type="button"
++                  onClick={() => setRole("job_seeker")}
++                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-xs font-semibold transition-all ${role === "job_seeker" ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-white/[0.03] border-white/10 text-white/40 hover:text-white/70"}`}
++                >
++                  <Briefcase className="w-3.5 h-3.5" /> Job Seeker
++                </button>
++                <button
++                  type="button"
++                  onClick={() => setRole("recruiter")}
++                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-xs font-semibold transition-all ${role === "recruiter" ? "bg-purple-500/15 border-purple-500/40 text-purple-400" : "bg-white/[0.03] border-white/10 text-white/40 hover:text-white/70"}`}
++                >
++                  <Building2 className="w-3.5 h-3.5" /> Recruiter
++                </button>
++              </div>
++
+               {/* ── 1. Google ── */}
+               <button
+                 onClick={handleGoogleLogin}
+                 disabled={googleLoading}
+                 className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl bg-white text-gray-800 font-semibold text-sm hover:bg-gray-50 active:bg-gray-100 transition-all duration-200 shadow-[0_2px_12px_rgba(0,0,0,0.3)]"
+               >
+                 <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                 </svg>
+                 Continue with Google
+                 {googleLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-500" />}
+               </button>
+ 
+               {/* ── 2. Phone OTP ── */}
+               <AnimatePresence mode="wait">
+                 {phoneStep === "idle" && (
+                   <motion.button
+                     key="phone-btn"
+                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                     onClick={() => { setPhoneStep("enter_phone"); setEmailStep("idle"); setError(""); }}
+                     className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border border-white/[0.12] bg-white/[0.04] text-white/80 text-sm font-medium hover:bg-white/[0.08] hover:border-white/[0.2] hover:text-white transition-all duration-200"
+                   >
+@@ -281,50 +326,51 @@ export default function Auth() {
+                   <motion.form
+                     key="phone-input"
+                     initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                     onSubmit={handleSendOtp}
+                     className="space-y-2.5"
+                   >
+                     <div className="flex items-center gap-2">
+                       <button type="button" onClick={() => { setPhoneStep("idle"); setError(""); }}
+                         className="text-white/30 hover:text-white/60 transition-colors text-xs px-1 shrink-0">✕</button>
+                       <span className="text-xs text-white/40 font-medium">Phone OTP</span>
+                     </div>
+                     <InputRow icon={Phone} type="tel" name="phone" placeholder="+91 98765 43210" value={phone} onChange={e => setPhone(e.target.value)} required autoFocus />
+                     <button type="submit" className="w-full py-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2">
+                       Send OTP <ArrowRight className="w-4 h-4" />
+                     </button>
+                   </motion.form>
+                 )}
+ 
+                 {phoneStep === "enter_otp" && (
+                   <motion.form
+                     key="otp-input"
+                     initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                     onSubmit={handleOtpSubmit}
+                     className="space-y-2.5"
+                   >
++                    {otpHint && <p className="text-xs text-amber-300/90">{otpHint}</p>}
+                     <div className="flex items-center justify-between">
+                       <span className="text-xs text-white/40">OTP sent to <strong className="text-white/70">{phone}</strong></span>
+                       <button type="button" onClick={() => setPhoneStep("enter_phone")} className="text-xs text-indigo-400/70 hover:text-indigo-400 flex items-center gap-1 transition-colors"><RefreshCw className="w-3 h-3" /> Resend</button>
+                     </div>
+                     <div className="flex items-center gap-3 bg-white/[0.05] border border-white/[0.1] rounded-xl px-4 py-3.5 focus-within:border-indigo-500/60 focus-within:shadow-[0_0_0_3px_rgba(99,102,241,0.12)] transition-all duration-200">
+                       <input
+                         type="text" maxLength={6} value={otp} onChange={e => setOtp(e.target.value)} autoFocus
+                         placeholder="6-digit OTP"
+                         className="flex-1 bg-transparent text-white placeholder:text-white/25 focus:outline-none text-sm tracking-[0.5rem] font-mono text-center"
+                       />
+                     </div>
+                     <button type="submit" className="w-full py-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-sm font-semibold transition-all duration-200">
+                       Verify OTP
+                     </button>
+                     <button type="button" onClick={() => { setPhoneStep("idle"); setError(""); }}
+                       className="w-full text-center text-xs text-white/30 hover:text-white/50 transition-colors py-1">
+                       ← Back to sign in options
+                     </button>
+                   </motion.form>
+                 )}
+               </AnimatePresence>
+ 
+               {/* ── Divider ── */}
+               {phoneStep === "idle" && (
+                 <div className="flex items-center gap-3 py-1">
+@@ -396,51 +442,51 @@ export default function Auth() {
+                         type="submit"
+                         disabled={isLoading}
+                         className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:opacity-90 active:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(99,102,241,0.3)]"
+                       >
+                         {isLoading ? (
+                           <Loader2 className="w-4 h-4 animate-spin" />
+                         ) : (
+                           <>
+                             {mode === "signin" ? "Sign In" : role === "recruiter" ? "Create Recruiter Account" : "Create Account"}
+                             <ArrowRight className="w-4 h-4" />
+                           </>
+                         )}
+                       </button>
+                       {mode === "signin" && (
+                         <button
+                           type="button"
+                           onClick={async () => {
+                             if (!email) { setError("Enter your email first to reset password."); return; }
+                             const res = await fetch(`${API}/auth/password-reset`, {
+                               method: "POST",
+                               headers: { "Content-Type": "application/json" },
+                               body: JSON.stringify({ email }),
+                             });
+                             if (res.ok) {
+                               setError("");
+-                              alert("Password reset email sent (if account exists).");
++                              setError("Reset link sent! Check your email inbox.");
+                             } else {
+                               setError("Could not send password reset email.");
+                             }
+                           }}
+                           className="text-xs text-indigo-300 hover:text-indigo-200 transition-colors"
+                         >
+                           Forgot password?
+                         </button>
+                       )}
+                     </motion.form>
+                   )}
+                 </AnimatePresence>
+               )}
+             </div>
+ 
+             {/* ── 4. Try Demo ── */}
+             {phoneStep === "idle" && emailStep === "idle" && (
+               <motion.div
+                 initial={{ opacity: 0 }}
+                 animate={{ opacity: 1 }}
+                 transition={{ delay: 0.1 }}
+                 className="mt-5 text-center"
+               >
+                 <button
+                   onClick={handleDemo}
+diff --git a/artifacts/hirenextai/src/pages/Landing.tsx b/artifacts/hirenextai/src/pages/Landing.tsx
+index a03eff7711b78872555f262cc0689c662bf5e22e..8e01684a59a32cecf6995a7b75e32fcba8414f80 100644
+--- a/artifacts/hirenextai/src/pages/Landing.tsx
++++ b/artifacts/hirenextai/src/pages/Landing.tsx
+@@ -147,50 +147,64 @@ export default function Landing() {
+           transition={{ duration: 0.6, delay: 0.1 }}
+           className="text-5xl md:text-7xl font-display font-extrabold tracking-tight mb-8 leading-tight"
+         >
+           Find Your Next Job <br />
+           <span className="text-gradient">
+             {typedText}
+             <span className="cursor-blink text-indigo-400 ml-0.5">|</span>
+           </span>
+         </motion.h1>
+ 
+         <motion.p
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.6, delay: 0.2 }}
+           className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-10"
+         >
+           Generate perfect cover letters, optimize your resume for ATS, and get AI-matched with jobs in Bangalore, Hyderabad, Pune, and across India. Built for BCA, MCA, BTech freshers and experienced professionals.
+         </motion.p>
+ 
+         <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.6, delay: 0.3 }}
+           className="flex flex-col sm:flex-row items-center justify-center gap-4"
+         >
++          <div className="w-full flex flex-col sm:flex-row gap-3 justify-center">
++            <button
++              onClick={() => setLocation("/dashboard/jobs")}
++              className="px-5 py-2.5 rounded-xl border border-indigo-500/40 bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 transition"
++            >
++              Continue as Job Seeker
++            </button>
++            <button
++              onClick={() => setLocation("/dashboard/recruiter")}
++              className="px-5 py-2.5 rounded-xl border border-purple-500/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 transition"
++            >
++              Continue as Recruiter
++            </button>
++          </div>
+           <Link href="/register" className="btn-primary py-4 px-8 text-lg w-full sm:w-auto hover:shadow-[0_0_40px_rgba(99,102,241,0.5)] hover:scale-[1.03] transition-all duration-300">
+             Start for Free
+           </Link>
+           <button
+             onClick={handleDemo}
+             disabled={demoLoading}
+             className="btn-secondary py-4 px-8 text-lg w-full sm:w-auto flex items-center justify-center gap-2 disabled:opacity-60 hover:bg-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.06)] transition-all duration-300"
+           >
+             {demoLoading ? <><Zap className="w-5 h-5 animate-pulse" /> Loading Demo...</> : <><Zap className="w-5 h-5" /> View Live Demo</>}
+           </button>
+         </motion.div>
+ 
+         {/* Social Proof */}
+         <motion.div
+           initial={{ opacity: 0 }}
+           animate={{ opacity: 1 }}
+           transition={{ delay: 0.6 }}
+           className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-white/40"
+         >
+           <div className="flex items-center gap-1.5">
+             {[1,2,3,4,5].map(n => <Star key={n} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />)}
+             <span className="ml-1">4.9/5 from 1,200+ reviews</span>
+           </div>
+           <div className="hidden sm:block w-px h-4 bg-white/10" />
+           <span>50,000+ job seekers across India</span>
+diff --git a/artifacts/hirenextai/src/pages/admin/AdminDashboard.tsx b/artifacts/hirenextai/src/pages/admin/AdminDashboard.tsx
+index 119e1371af13fc49bed411121ec7c156e6482061..d95ce7d2d0b425c79dd0066abbccb8e8587547b9 100644
+--- a/artifacts/hirenextai/src/pages/admin/AdminDashboard.tsx
++++ b/artifacts/hirenextai/src/pages/admin/AdminDashboard.tsx
+@@ -142,51 +142,51 @@ export default function AdminDashboard() {
+   const sendReply = async () => {
+     if (!selectedTicket || !reply.trim()) return;
+     setSending(true);
+     try {
+       const res = await fetch(`${API}/admin/ticket/${selectedTicket.id}/reply`, {
+         method: "PATCH",
+         headers: authHeaders(),
+         body: JSON.stringify({ reply }),
+       });
+       if (!res.ok) throw new Error();
+       toast({ title: "Reply sent", description: "Ticket marked as resolved." });
+       setTickets(prev =>
+         prev.map(t => t.id === selectedTicket.id ? { ...t, adminReply: reply, status: "resolved" } : t)
+       );
+       setSelectedTicket(null);
+       setReply("");
+       fetchAll();
+     } catch {
+       toast({ title: "Failed to send reply", variant: "destructive" });
+     } finally {
+       setSending(false);
+     }
+   };
+ 
+   const filteredTickets = tickets.filter(t =>
+-    statusFilter === "all" ? true : t.status === (statusFilter === "closed" ? "resolved" : statusFilter)
++    statusFilter === "all" ? true : t.status === statusFilter
+   );
+ 
+   const sendBroadcast = async () => {
+     if (!broadcast.title.trim() || !broadcast.message.trim()) return;
+     try {
+       const res = await fetch(`${API}/admin/notifications/send`, {
+         method: "POST",
+         headers: authHeaders(),
+         body: JSON.stringify({
+           title: broadcast.title,
+           message: broadcast.message,
+           audience: broadcast.audience,
+           channels: broadcast.email ? ["in_app", "email"] : ["in_app"],
+         }),
+       });
+       if (!res.ok) throw new Error();
+       toast({ title: "Broadcast sent successfully" });
+       setBroadcast({ title: "", message: "", audience: "all", email: true });
+     } catch {
+       toast({ title: "Failed to send broadcast", variant: "destructive" });
+     }
+   };
+ 
+   return (
+     <div className="space-y-8">
+diff --git a/artifacts/hirenextai/src/pages/admin/AdminEmail.tsx b/artifacts/hirenextai/src/pages/admin/AdminEmail.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..641909c614e405cc6f0c6363cd7c139e643efb80
+--- /dev/null
++++ b/artifacts/hirenextai/src/pages/admin/AdminEmail.tsx
+@@ -0,0 +1,108 @@
++import { useEffect, useState } from "react";
++import { useAuth } from "@/hooks/use-auth";
++import { useToast } from "@/hooks/use-toast";
++
++const API = import.meta.env.VITE_API_URL ?? "/api";
++
++interface UserLite {
++  id: number;
++  name: string;
++  email: string;
++}
++
++interface AdminUserApiResponse {
++  id: number;
++  name: string;
++  email: string;
++}
++
++export default function AdminEmail() {
++  const { token } = useAuth();
++  const { toast } = useToast();
++  const [title, setTitle] = useState("");
++  const [message, setMessage] = useState("");
++  const [audience, setAudience] = useState("all");
++  const [sending, setSending] = useState(false);
++  const [users, setUsers] = useState<UserLite[]>([]);
++  const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
++
++  useEffect(() => {
++    const loadUsers = async () => {
++      const res = await fetch(`${API}/admin/users`, {
++        headers: { Authorization: `Bearer ${token}` },
++      });
++      if (res.ok) {
++        const data = (await res.json()) as AdminUserApiResponse[];
++        setUsers(data.map((u) => ({ id: u.id, name: u.name, email: u.email })));
++      }
++    };
++    if (token) loadUsers();
++  }, [token]);
++
++  const toggleUser = (id: number) => {
++    setSelectedUsers((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
++  };
++
++  const sendEmailAnnouncement = async () => {
++    if (!title.trim() || !message.trim()) return;
++    if (audience === "selected" && selectedUsers.length === 0) {
++      toast({ title: "Select at least one user", variant: "destructive" });
++      return;
++    }
++
++    setSending(true);
++    try {
++      const res = await fetch(`${API}/admin/notifications/send`, {
++        method: "POST",
++        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
++        body: JSON.stringify({
++          title,
++          message,
++          audience,
++          recipientUserIds: audience === "selected" ? selectedUsers : undefined,
++          channels: ["in_app", "email"],
++        }),
++      });
++      if (!res.ok) throw new Error();
++      toast({ title: "Announcement sent" });
++      setTitle("");
++      setMessage("");
++      setSelectedUsers([]);
++    } catch {
++      toast({ title: "Failed to send announcement", variant: "destructive" });
++    } finally {
++      setSending(false);
++    }
++  };
++
++  return (
++    <div className="space-y-4 max-w-4xl">
++      <h1 className="text-2xl font-bold text-white">Announcements</h1>
++      <div className="glass-card p-5 space-y-3">
++        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600" />
++        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} placeholder="Message" className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600" />
++
++        <div className="flex items-center gap-3">
++          <select value={audience} onChange={(e) => setAudience(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600">
++            <option value="all">All users</option>
++            <option value="job_seeker">Job seekers</option>
++            <option value="recruiter">Recruiters</option>
++            <option value="selected">Selected users</option>
++          </select>
++          <button onClick={sendEmailAnnouncement} disabled={sending} className="px-4 py-2 rounded-lg bg-indigo-600 text-white disabled:opacity-50">{sending ? "Sending..." : "Send Announcement"}</button>
++        </div>
++
++        {audience === "selected" && (
++          <div className="border border-white/10 rounded-lg p-3 max-h-56 overflow-y-auto space-y-2">
++            {users.map((u) => (
++              <label key={u.id} className="flex items-center gap-2 text-sm text-white/80">
++                <input type="checkbox" checked={selectedUsers.includes(u.id)} onChange={() => toggleUser(u.id)} />
++                <span>{u.name} ({u.email})</span>
++              </label>
++            ))}
++          </div>
++        )}
++      </div>
++    </div>
++  );
++}
+diff --git a/artifacts/hirenextai/src/pages/admin/AdminNotifications.tsx b/artifacts/hirenextai/src/pages/admin/AdminNotifications.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..46f4a5459de379ed6c8cdfc25d28722b13dc040a
+--- /dev/null
++++ b/artifacts/hirenextai/src/pages/admin/AdminNotifications.tsx
+@@ -0,0 +1,46 @@
++import { useEffect, useState } from "react";
++import { useAuth } from "@/hooks/use-auth";
++
++const API = import.meta.env.VITE_API_URL ?? "/api";
++
++interface AdminNotification {
++  id: number;
++  title: string;
++  message: string;
++  channel: string;
++  audience: string;
++  createdAt: string;
++}
++
++export default function AdminNotifications() {
++  const { token } = useAuth();
++  const [items, setItems] = useState<AdminNotification[]>([]);
++
++  useEffect(() => {
++    const load = async () => {
++      const res = await fetch(`${API}/admin/notifications`, {
++        headers: { Authorization: `Bearer ${token}` },
++      });
++      if (res.ok) setItems(await res.json());
++    };
++    if (token) load();
++  }, [token]);
++
++  return (
++    <div className="space-y-4">
++      <h1 className="text-2xl font-bold text-white">Notification Management</h1>
++      <div className="space-y-3">
++        {items.map((n) => (
++          <div key={n.id} className="glass-card p-4">
++            <div className="flex items-center justify-between">
++              <h3 className="text-white font-semibold">{n.title}</h3>
++              <span className="text-xs text-white/50">{new Date(n.createdAt).toLocaleString()}</span>
++            </div>
++            <p className="text-sm text-white/70 mt-1">{n.message}</p>
++            <p className="text-xs text-white/40 mt-2">Audience: {n.audience} · Channel: {n.channel}</p>
++          </div>
++        ))}
++      </div>
++    </div>
++  );
++}
+diff --git a/artifacts/hirenextai/src/pages/dashboard/JobAlerts.tsx b/artifacts/hirenextai/src/pages/dashboard/JobAlerts.tsx
+index 9350800c5a20385b917539728034a245742c53b4..1a4d4021f744f6429ce42a81c22f33207d28704f 100644
+--- a/artifacts/hirenextai/src/pages/dashboard/JobAlerts.tsx
++++ b/artifacts/hirenextai/src/pages/dashboard/JobAlerts.tsx
+@@ -1,29 +1,29 @@
+ import { useState, useEffect, useCallback } from "react";
+ import { motion, AnimatePresence } from "framer-motion";
+ import {
+-  Bell, BellOff, Zap, Calendar, Clock, Mail, MailOff, CheckCircle2,
++  Bell, BellOff, Zap, Calendar, Clock, Mail, CheckCircle2,
+   Settings, History, ChevronRight, Loader2, X, Plus, Building2, MapPin,
+   Briefcase, Star, Edit2, Save, RefreshCw, Info
+ } from "lucide-react";
+ import { useAuthStore } from "@/hooks/use-auth";
+ import { useToast } from "@/hooks/use-toast";
+ 
+ const API = import.meta.env.VITE_API_URL ?? "/api";
+ 
+ interface AlertPrefs {
+   id: number;
+   userId: number;
+   enabled: boolean;
+   frequency: string;
+   keywords: string[];
+   skills: string[];
+   locations: string[];
+   openToRemote: boolean;
+   jobTypes: string[];
+   categories: string[];
+   salaryMin: number | null;
+   isFresherOnly: boolean;
+   emailAlerts: boolean;
+   lastSentAt: string | null;
+   createdAt: string;
+   updatedAt: string;
+diff --git a/artifacts/hirenextai/src/pages/dashboard/Jobs.tsx b/artifacts/hirenextai/src/pages/dashboard/Jobs.tsx
+index 42e03797385b2dca7afd1e8888cdf78a9b2ccd36..a2fdcae0738db26b0a167d704bcb7410bba29d9e 100644
+--- a/artifacts/hirenextai/src/pages/dashboard/Jobs.tsx
++++ b/artifacts/hirenextai/src/pages/dashboard/Jobs.tsx
+@@ -1,45 +1,54 @@
+ import { useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from "react";
+ import DOMPurify from "dompurify";
+ import { useDemoStore } from "@/store/demo";
+ import { useAuthStore } from "@/hooks/use-auth";
+ import RecommendedJobs, { type RecommendedJob } from "@/components/RecommendedJobs";
+ import {
+   useGetJobs, useCreateApplication,
+   useGenerateCoverLetter, useGenerateRecruiterMessage,
+   useGetProfile,
+ } from "@workspace/api-client-react";
+ import {
+   Search, MapPin, Building2, Briefcase, Clock, X, Loader2, Sparkles,
+   Wifi, GraduationCap, CheckCircle2, Copy, FileText, MessageSquare,
+   IndianRupee, ExternalLink, RefreshCw, Radio, Database,
+   TrendingUp, Lightbulb, ChevronRight, Zap, Target,
+   SlidersHorizontal, ArrowUpDown, ChevronDown, Users, Star, Bookmark, BookmarkCheck,
+ } from "lucide-react";
+ import { format } from "date-fns";
+ import { motion, AnimatePresence } from "framer-motion";
+-import type { Job, UserProfile } from "@workspace/api-client-react";
++import type { Job, UserProfile, GetJobsType } from "@workspace/api-client-react";
++type JobsQueryParams = Parameters<typeof useGetJobs>[0] & {
++  keyword?: string;
++  fresher?: boolean;
++  experience?: string;
++  minSalary?: number;
++  maxSalary?: number;
++  sortBy?: string;
++  skills?: string;
++};
+ 
+ /* ─── Static data ────────────────────────────────────────────────────────── */
+ const CATEGORIES = [
+   "Engineering", "AI/ML", "Cyber Security", "Data Science", "DevOps",
+   "IT Support", "Digital Marketing", "Data Entry", "Sales", "HR",
+   "Finance", "Product", "Design", "Internship", "Government",
+ ];
+ 
+ const LOCATIONS = [
+   "Bangalore", "Hyderabad", "Pune", "Mumbai", "Delhi",
+   "Chennai", "Gurgaon", "Noida", "Kolkata", "Remote",
+ ];
+ 
+ const JOB_TYPES = ["full-time", "part-time", "internship", "freelance"];
+ 
+ const TRENDING_SEARCHES = [
+   { label: "Cyber Security", icon: "🛡️" },
+   { label: "AI/ML", icon: "🤖" },
+   { label: "BCA Fresher", icon: "🎓" },
+   { label: "Remote DevOps", icon: "☁️" },
+   { label: "Data Science", icon: "📊" },
+   { label: "Python Developer", icon: "🐍" },
+   { label: "Full Stack", icon: "⚡" },
+   { label: "MCA Jobs", icon: "💼" },
+   { label: "IT Support", icon: "🖥️" },
+@@ -388,67 +397,67 @@ export default function Jobs() {
+     const newUrl = window.location.pathname + (qs ? `?${qs}` : "");
+     window.history.replaceState({}, "", newUrl);
+   }, [search, category, location, type, experience, minSalaryLPA, maxSalaryLPA, sortBy, remote, fresher, skillsFilter]);
+ 
+   useEffect(() => {
+     const t = setTimeout(() => setDebouncedSearch(search), 450);
+     return () => clearTimeout(t);
+   }, [search]);
+ 
+   // Reset pagination when filters change
+   useEffect(() => {
+     setFetchLimit(30);
+   }, [debouncedSearch, category, location, type, experience, minSalaryLPA, maxSalaryLPA, remote, fresher, skillsFilter, sortBy]);
+ 
+   // Convert LPA to rupees for API
+   const minSalaryRupees = minSalaryLPA ? Math.round(parseFloat(minSalaryLPA) * 100000) : undefined;
+   const maxSalaryRupees = maxSalaryLPA ? Math.round(parseFloat(maxSalaryLPA) * 100000) : undefined;
+ 
+   const { data: profileData } = useGetProfile();
+   const profile = profileData as UserProfile | undefined;
+ 
+   // When "Best Match" sort is selected, let the backend return default order
+   // then we re-sort client-side using computed match scores
+   const backendSortBy = sortBy === "relevant" ? undefined : sortBy !== "latest" ? sortBy : undefined;
+ 
+-  const { data, isLoading, refetch } = useGetJobs({
+-    query: {
++  const jobsQueryParams: JobsQueryParams = {
+       search: debouncedSearch || undefined,
+       keyword: debouncedSearch || undefined,
+       category: category || undefined,
+       location: location || undefined,
+       remote: remote || undefined,
+-      type: type || undefined,
++      type: (type || undefined) as GetJobsType | undefined,
+       fresher: fresher || undefined,
+       experience: experience || undefined,
+-      minSalary: minSalaryRupees as any,
+-      maxSalary: maxSalaryRupees as any,
+-      sortBy: backendSortBy as any,
+-      skills: skillsFilter.length > 0 ? skillsFilter.join(",") as any : undefined,
+-      limit: fetchLimit as any,
+-    } as any,
+-  });
++      minSalary: minSalaryRupees,
++      maxSalary: maxSalaryRupees,
++      sortBy: backendSortBy,
++      skills: skillsFilter.length > 0 ? skillsFilter.join(",") : undefined,
++      limit: fetchLimit,
++    };
++
++  const { data, isLoading, refetch } = useGetJobs(jobsQueryParams);
+ 
+   const rawJobs = (data?.jobs ?? []) as LiveJobType[];
+ 
+   // Compute match scores for all jobs — memoized so it only recalculates
+   // when jobs or profile changes (acts as an in-memory cache)
+   const jobsWithScores = useMemo<LiveJobType[]>(() => {
+     if (!profile || profile.skills.length === 0) return rawJobs;
+     return rawJobs.map(job => ({
+       ...job,
+       matchScore: computeMatchScore(job, profile),
+     }));
+   }, [rawJobs, profile]);
+ 
+   // Re-sort client-side when "Best Match" is selected
+   const jobs = useMemo<LiveJobType[]>(() => {
+     if (sortBy === "relevant" && profile && profile.skills.length > 0) {
+       return [...jobsWithScores].sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
+     }
+     return jobsWithScores;
+   }, [jobsWithScores, sortBy, profile]);
+ 
+   // "Best Jobs For You" — top-matched jobs (≥60%) shown as a special section
+   const bestMatchJobs = useMemo<LiveJobType[]>(() => {
+     if (!profile || profile.skills.length === 0) return [];
+     return [...jobsWithScores]
+@@ -1768,26 +1777,25 @@ function JobDetailModal({ job, onClose, isSaved, onToggleSave }: {
+                         <div className="glass-card p-4 text-sm text-white/70 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">{coverLetter}</div>
+                       </div>
+                     : <div className="glass-card p-4 flex items-center gap-3 border-primary/20 bg-primary/5">
+                         <FileText className="w-5 h-5 text-primary shrink-0" />
+                         <p className="text-sm text-white/70">Generate a cover letter first to strengthen your application.</p>
+                       </div>
+                   }
+                   {applyUrl && (
+                     <a href={applyUrl} target="_blank" rel="noopener noreferrer"
+                       className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-sm font-medium text-white/70 transition-colors">
+                       <ExternalLink className="w-4 h-4" /> Apply directly on {source}
+                     </a>
+                   )}
+                   <button onClick={handleApply} disabled={applyMutation.isPending} className="btn-primary w-full gap-2">
+                     {applyMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-4 h-4" /> Track Application</>}
+                   </button>
+                 </>
+               )}
+             </div>
+           )}
+         </div>
+       </motion.div>
+     </>
+   );
+ }
+-
+diff --git a/artifacts/hirenextai/src/pages/dashboard/Subscription.tsx b/artifacts/hirenextai/src/pages/dashboard/Subscription.tsx
+index 1b8583668d49aecd48a084016d66a47de30c8d7f..bf4dc57b8c1ea420d73d68168cc149a39baeb80e 100644
+--- a/artifacts/hirenextai/src/pages/dashboard/Subscription.tsx
++++ b/artifacts/hirenextai/src/pages/dashboard/Subscription.tsx
+@@ -1,39 +1,39 @@
+ import { useState } from "react";
+ import { useGetSubscription, useUpdateSubscription, useGetAIUsage } from "@workspace/api-client-react";
+ import {
+   CheckCircle2, X, Loader2, Crown, Zap, Sparkles, ArrowRight, Lock,
+ } from "lucide-react";
+ import { motion } from "framer-motion";
+ 
+ /* ── Feature comparison table data ──────────────────────────────────── */
+ 
+ interface Feature {
+   label: string;
+   free: string | false;
+-  pro: string | true;
+-  premium: string | true;
++  pro: string | true | false;
++  premium: string | true | false;
+ }
+ 
+ const FEATURES: Feature[] = [
+   { label: "Job Board Access",          free: "Full access",     pro: true,            premium: true },
+   { label: "Application Tracker",       free: "Up to 10 jobs",  pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Cover Letter Generator",    free: "3 / month",       pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Resume Bullet Optimizer",   free: "5 / month",       pro: "Unlimited",     premium: "Unlimited" },
+   { label: "AI Chat (HireBot)",         free: "20 msg / month",  pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Job Match Score",           free: "3 / month",       pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Career Suggestions",        free: "2 / month",       pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Job Description Simplifier",free: "10 / month",      pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Recruiter Outreach AI",     free: false,             pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Interview Prep AI",         free: false,             pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Priority Support",          free: false,             pro: true,            premium: true },
+   { label: "1-on-1 Career Coaching",    free: false,             pro: false,           premium: "1 session / mo" },
+   { label: "Priority AI Response",      free: false,             pro: false,           premium: true },
+ ];
+ 
+ /* ── Cell renderer ───────────────────────────────────────────────────── */
+ function Cell({ value }: { value: string | boolean | false }) {
+   if (value === false) return <X className="w-4 h-4 text-white/20 mx-auto" />;
+   if (value === true)  return <CheckCircle2 className="w-4 h-4 text-indigo-400 mx-auto" />;
+   return <span className="text-xs text-white/70 text-center block">{value}</span>;
+ }
+ 
+diff --git a/artifacts/hirenextai/src/pages/dashboard/recruiter/RecruiterDashboard.tsx b/artifacts/hirenextai/src/pages/dashboard/recruiter/RecruiterDashboard.tsx
+index 75c7135a4a297cac72d9b9c0cb0b1ca50b5d9e54..615f916adfb948dcb8a70807222a3fc16a8e17e0 100644
+--- a/artifacts/hirenextai/src/pages/dashboard/recruiter/RecruiterDashboard.tsx
++++ b/artifacts/hirenextai/src/pages/dashboard/recruiter/RecruiterDashboard.tsx
+@@ -103,57 +103,57 @@ function ApplicantCard({
+       <div className="flex items-start gap-3">
+         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-sm font-bold text-white shrink-0">
+           {initials}
+         </div>
+         <div className="flex-1 min-w-0">
+           <div className="flex items-center justify-between gap-2">
+             <div>
+               <p className="text-sm font-semibold text-white truncate">{applicant.name}</p>
+               <p className="text-xs text-white/40 truncate">{applicant.email}</p>
+             </div>
+             <StatusBadge status={applicant.recruiterStatus} />
+           </div>
+ 
+           {applicant.profile?.headline && (
+             <p className="text-xs text-white/50 mt-1 truncate">{applicant.profile.headline}</p>
+           )}
+           {applicant.profile?.degreeLevel && (
+             <p className="text-xs text-white/40 mt-0.5">{applicant.profile.degreeLevel} {applicant.profile.specialization ? `· ${applicant.profile.specialization}` : ""}</p>
+           )}
+ 
+           <p className="text-xs text-white/25 mt-1.5">Applied {new Date(applicant.appliedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+         </div>
+       </div>
+ 
+       {/* Skills */}
+-      {applicant.profile?.skills?.length > 0 && (
++      {(applicant.profile?.skills?.length ?? 0) > 0 && (
+         <div className="flex flex-wrap gap-1 mt-3">
+-          {applicant.profile.skills.slice(0, 5).map(s => (
++          {applicant.profile?.skills?.slice(0, 5).map((s) => (
+             <span key={s} className="px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-xs text-white/50">{s}</span>
+           ))}
+-          {applicant.profile.skills.length > 5 && (
+-            <span className="text-xs text-white/25">+{applicant.profile.skills.length - 5} more</span>
++          {(applicant.profile?.skills?.length ?? 0) > 5 && (
++            <span className="text-xs text-white/25">+{(applicant.profile?.skills?.length ?? 0) - 5} more</span>
+           )}
+         </div>
+       )}
+ 
+       {/* Expandable details */}
+       {(applicant.coverLetter || applicant.resumeUrl) && (
+         <button
+           onClick={() => setExpanded(!expanded)}
+           className="mt-3 text-xs text-indigo-400/70 hover:text-indigo-400 transition-colors flex items-center gap-1"
+         >
+           <FileText className="w-3 h-3" />
+           {expanded ? "Hide" : "View"} cover letter{applicant.resumeUrl ? " & resume" : ""}
+         </button>
+       )}
+ 
+       <AnimatePresence>
+         {expanded && (
+           <motion.div
+             initial={{ height: 0, opacity: 0 }}
+             animate={{ height: "auto", opacity: 1 }}
+             exit={{ height: 0, opacity: 0 }}
+             className="overflow-hidden"
+           >
+             <div className="mt-3 p-3 bg-white/[0.03] rounded-lg border border-white/[0.06] space-y-2">
+               {applicant.coverLetter && (
+diff --git a/lib/integrations-openai-ai-server/src/batch/utils.ts b/lib/integrations-openai-ai-server/src/batch/utils.ts
+index debfaa14fc0b4e4794d7b08d9c8f32de5cfc7019..1651a7f4570b36ca4a9cde01991fb12a1d192eb8 100644
+--- a/lib/integrations-openai-ai-server/src/batch/utils.ts
++++ b/lib/integrations-openai-ai-server/src/batch/utils.ts
+@@ -1,27 +1,27 @@
+ import pLimit from "p-limit";
+-import pRetry from "p-retry";
++import pRetry, { AbortError } from "p-retry";
+ 
+ /**
+  * Batch Processing Utilities
+  *
+  * Generic batch processing with built-in rate limiting and automatic retries.
+  * Use for any task that requires processing multiple items through an LLM or external API.
+  *
+  * USAGE:
+  * ```typescript
+  * import { batchProcess } from "@workspace/integrations-openai-ai-server/batch";
+  * import { openai } from "@workspace/integrations-openai-ai-server";
+  *
+  * const results = await batchProcess(
+  *   artworks,
+  *   async (artwork) => {
+  *     const response = await openai.chat.completions.create({
+  *       model: "gpt-5.2",
+  *       messages: [{ role: "user", content: `Categorize: ${artwork.name}` }],
+  *       response_format: { type: "json_object" },
+  *     });
+  *     return JSON.parse(response.choices[0]?.message?.content || "{}");
+  *   },
+  *   { concurrency: 2, retries: 5 }
+  * );
+  * ```
+@@ -52,88 +52,88 @@ export async function batchProcess<T, R>(
+ ): Promise<R[]> {
+   const {
+     concurrency = 2,
+     retries = 7,
+     minTimeout = 2000,
+     maxTimeout = 128000,
+     onProgress,
+   } = options;
+ 
+   const limit = pLimit(concurrency);
+   let completed = 0;
+ 
+   const promises = items.map((item, index) =>
+     limit(() =>
+       pRetry(
+         async () => {
+           try {
+             const result = await processor(item, index);
+             completed++;
+             onProgress?.(completed, items.length, item);
+             return result;
+           } catch (error: unknown) {
+             if (isRateLimitError(error)) {
+               throw error;
+             }
+-            throw new pRetry.AbortError(
++            throw new AbortError(
+               error instanceof Error ? error : new Error(String(error))
+             );
+           }
+         },
+         { retries, minTimeout, maxTimeout, factor: 2 }
+       )
+     )
+   );
+ 
+   return Promise.all(promises);
+ }
+ 
+ export async function batchProcessWithSSE<T, R>(
+   items: T[],
+   processor: (item: T, index: number) => Promise<R>,
+   sendEvent: (event: { type: string; [key: string]: unknown }) => void,
+   options: Omit<BatchOptions, "concurrency" | "onProgress"> = {}
+ ): Promise<R[]> {
+   const { retries = 5, minTimeout = 1000, maxTimeout = 15000 } = options;
+ 
+   sendEvent({ type: "started", total: items.length });
+ 
+   const results: R[] = [];
+   let errors = 0;
+ 
+   for (let index = 0; index < items.length; index++) {
+     const item = items[index];
+     sendEvent({ type: "processing", index, item });
+ 
+     try {
+       const result = await pRetry(
+         () => processor(item, index),
+         {
+           retries,
+           minTimeout,
+           maxTimeout,
+           factor: 2,
+           onFailedAttempt: (error) => {
+             if (!isRateLimitError(error)) {
+-              throw new pRetry.AbortError(
++              throw new AbortError(
+                 error instanceof Error ? error : new Error(String(error))
+               );
+             }
+           },
+         }
+       );
+       results.push(result);
+       sendEvent({ type: "progress", index, result });
+     } catch (error) {
+       errors++;
+       results.push(undefined as R);
+       sendEvent({
+         type: "progress",
+         index,
+         error: error instanceof Error ? error.message : "Processing failed",
+       });
+     }
+   }
+ 
+   sendEvent({ type: "complete", processed: items.length, errors });
+   return results;
+ }
+diff --git a/lib/integrations-openai-ai-server/src/image/client.ts b/lib/integrations-openai-ai-server/src/image/client.ts
+index 672157b5d6bf9dc1e9aace102e3265253ae61e07..e73ccca9797bc84a4aa6710affc09c4f4bfa0f6a 100644
+--- a/lib/integrations-openai-ai-server/src/image/client.ts
++++ b/lib/integrations-openai-ai-server/src/image/client.ts
+@@ -6,57 +6,57 @@ if (!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+   throw new Error(
+     "AI_INTEGRATIONS_OPENAI_BASE_URL must be set. Did you forget to provision the OpenAI AI integration?",
+   );
+ }
+ 
+ if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+   throw new Error(
+     "AI_INTEGRATIONS_OPENAI_API_KEY must be set. Did you forget to provision the OpenAI AI integration?",
+   );
+ }
+ 
+ export const openai = new OpenAI({
+   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+ });
+ 
+ export async function generateImageBuffer(
+   prompt: string,
+   size: "1024x1024" | "512x512" | "256x256" = "1024x1024"
+ ): Promise<Buffer> {
+   const response = await openai.images.generate({
+     model: "gpt-image-1",
+     prompt,
+     size,
+   });
+-  const base64 = response.data[0]?.b64_json ?? "";
++  const base64 = response.data?.[0]?.b64_json ?? "";
+   return Buffer.from(base64, "base64");
+ }
+ 
+ export async function editImages(
+   imageFiles: string[],
+   prompt: string,
+   outputPath?: string
+ ): Promise<Buffer> {
+   const images = await Promise.all(
+     imageFiles.map((file) =>
+       toFile(fs.createReadStream(file), file, {
+         type: "image/png",
+       })
+     )
+   );
+ 
+   const response = await openai.images.edit({
+     model: "gpt-image-1",
+     image: images,
+     prompt,
+   });
+ 
+-  const imageBase64 = response.data[0]?.b64_json ?? "";
++  const imageBase64 = response.data?.[0]?.b64_json ?? "";
+   const imageBytes = Buffer.from(imageBase64, "base64");
+ 
+   if (outputPath) {
+     fs.writeFileSync(outputPath, imageBytes);
+   }
+ 
+   return imageBytes;
+ }
+diff --git a/lib/integrations-openai-ai-server/tsconfig.json b/lib/integrations-openai-ai-server/tsconfig.json
+index 53af906a0d19e9529580b4891101ae9637b5da07..5859959cb9219e0c20d2f6b9e4c2cce2d1dc3711 100644
+--- a/lib/integrations-openai-ai-server/tsconfig.json
++++ b/lib/integrations-openai-ai-server/tsconfig.json
+@@ -1,12 +1,11 @@
+ {
+   "extends": "../../tsconfig.base.json",
+   "compilerOptions": {
+     "composite": true,
+     "declarationMap": true,
+     "emitDeclarationOnly": true,
+     "outDir": "dist",
+-    "rootDir": "src",
+-    "types": ["node"]
++    "rootDir": "src"
+   },
+   "include": ["src"]
+ }
+diff --git a/tsconfig.json b/tsconfig.json
+index 49df732d26da445e8a1b457e8a8f588b69c1bbd1..248830062c9691ecc032765a52025712806c9c48 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -1,16 +1,19 @@
+ {
+   "extends": "./tsconfig.base.json",
+   "compileOnSave": false,
+   "files": [],
+   "references": [
+     {
+       "path": "./lib/db"
+     },
+     {
+       "path": "./lib/api-client-react"
+     },
+     {
+       "path": "./lib/api-zod"
++    },
++    {
++      "path": "./lib/integrations-openai-ai-server"
+     }
+   ]
+ }

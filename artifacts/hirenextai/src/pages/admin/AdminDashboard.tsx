@@ -128,7 +128,10 @@ export default function AdminDashboard() {
       if (statsRes.ok) setStats(await statsRes.json());
       if (growthRes.ok) setGrowth(await growthRes.json());
       const supportRes = await fetch(`${API}/support/metrics/monthly`, { headers: authHeaders() });
-      if (supportRes.ok) setTicketGrowth(await supportRes.json());
+      if (supportRes.ok) {
+        const payload = await supportRes.json();
+        setTicketGrowth(payload?.data ?? payload ?? []);
+      }
     } catch {
       toast({ title: "Failed to load dashboard data", variant: "destructive" });
     } finally {
@@ -180,11 +183,12 @@ export default function AdminDashboard() {
           channels: broadcast.email ? ["in_app", "email"] : ["in_app"],
         }),
       });
-      if (!res.ok) throw new Error();
-      toast({ title: "Broadcast sent successfully" });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || payload?.message || "Broadcast failed");
+      toast({ title: "Broadcast sent successfully", description: `Delivered to ${payload?.sent ?? 0} users.` });
       setBroadcast({ title: "", message: "", audience: "all", email: true });
-    } catch {
-      toast({ title: "Failed to send broadcast", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Failed to send broadcast", description: error?.message ?? "Unknown error", variant: "destructive" });
     }
   };
 
@@ -289,8 +293,8 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-3">
               <select value={broadcast.audience} onChange={(e) => setBroadcast((p) => ({ ...p, audience: e.target.value }))} className="p-2 rounded-lg bg-white/5 border border-white/10 text-sm">
                 <option value="all">All users</option>
-                <option value="job_seeker">Job seekers</option>
-                <option value="recruiter">Recruiters</option>
+                <option value="job_seekers">Job seekers</option>
+                <option value="recruiters">Recruiters</option>
               </select>
               <label className="text-sm text-white/70 flex items-center gap-2">
                 <input type="checkbox" checked={broadcast.email} onChange={(e) => setBroadcast((p) => ({ ...p, email: e.target.checked }))} />

@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,8 +18,9 @@ export function Navbar() {
       className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-background/50 backdrop-blur-xl"
     >
       <div className="max-w-7xl mx-auto px-6 h-[76px] md:h-24 flex items-center justify-between">
-        <Link href="/">
+        <Link href="/" className="flex flex-col items-start">
           <Logo size="sm" />
+          <span className="text-[11px] text-muted-foreground mt-0.5">{currentPageName}</span>
         </Link>
 
         {/* Desktop Links */}

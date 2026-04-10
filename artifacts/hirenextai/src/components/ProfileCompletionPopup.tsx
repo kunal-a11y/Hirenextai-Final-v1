@@ -101,6 +101,12 @@ export default function ProfileCompletionPopup({ profile, user, onCompleteNow, o
   };
 
   const busy = updateProfile.isPending;
+  const [collapsed, setCollapsed] = useState(false);
+  const [dismissed, setDismissed] = useState(sessionStorage.getItem("profile_panel_dismissed") === "1");
+
+  if (dismissed) return null;
+
+  if (hiddenForSession) return null;
 
   if (hiddenForSession) return null;
 
