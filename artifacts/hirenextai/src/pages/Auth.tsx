@@ -390,7 +390,7 @@ export default function Auth() {
                         </span>
                       </div>
                       {mode === "signup" && (
-                        <InputRow icon={User} type="text" name="name" placeholder={t("auth.fullName")} value={name} onChange={e => setName(e.target.value)} required autoFocus />
+                        <InputRow icon={User} type="text" name="name" placeholder="Full name" value={name} onChange={e => setName(e.target.value)} required autoFocus />
                       )}
 
                       <InputRow icon={Mail} type="email" name="email" placeholder={t("auth.email")} value={email} onChange={e => setEmail(e.target.value)} required autoFocus={mode === "signin"} />
@@ -405,7 +405,7 @@ export default function Auth() {
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <>
-                            {mode === "signin" ? t("auth.signIn") : t("auth.signUp")}
+                            {mode === "signin" ? "Sign In" : "Create Account"}
                             <ArrowRight className="w-4 h-4" />
                           </>
                         )}

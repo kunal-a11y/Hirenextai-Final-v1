@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useTranslation } from "@/lib/i18n";
 
 const API = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -20,7 +19,6 @@ interface AdminUserApiResponse {
 export default function AdminEmail() {
   const { token } = useAuth();
   const { toast } = useToast();
-  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState("all");
@@ -76,7 +74,7 @@ export default function AdminEmail() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to send announcement");
-      toast({ title: t("admin.announcements"), description: `${data?.sent ?? 0} recipients` });
+      toast({ title: "Announcement sent", description: `${data?.sent ?? 0} recipients` });
       setTitle("");
       setMessage("");
       setSelectedUsers([]);
@@ -89,33 +87,33 @@ export default function AdminEmail() {
 
   return (
     <div className="space-y-4 max-w-4xl">
-      <h1 className="text-2xl font-bold text-white">{t("admin.announcements")}</h1>
+      <h1 className="text-2xl font-bold text-white">Announcements</h1>
       <div className="card space-y-3">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("admin.title")} className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600" />
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} placeholder={t("admin.message")} className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600" />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600" />
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} placeholder="Message" className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600" />
 
         <div className="flex items-center gap-3">
           <select value={audience} onChange={(e) => setAudience(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600">
-            <option value="all">{t("admin.allUsers")}</option>
-            <option value="job_seeker">{t("admin.jobSeekers")}</option>
-            <option value="recruiter">{t("admin.recruiters")}</option>
-            <option value="selected">{t("admin.selectedUsers")}</option>
+            <option value="all">All users</option>
+            <option value="job_seeker">Job seekers</option>
+            <option value="recruiter">Recruiters</option>
+            <option value="selected">Selected users</option>
           </select>
           <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as "popup" | "notification")} className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600">
-            <option value="notification">{t("admin.inAppNotification")}</option>
-            <option value="popup">{t("admin.popup")}</option>
+            <option value="notification">Notification</option>
+            <option value="popup">Popup</option>
           </select>
           <input
             value={durationHours}
             onChange={(e) => setDurationHours(e.target.value)}
-            placeholder={t("admin.durationHours")}
+            placeholder="Duration (hours)"
             className="w-40 px-3 py-2 rounded-lg bg-slate-900 text-slate-100 border border-slate-600"
           />
           <label className="text-sm text-white/80 flex items-center gap-2">
             <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />
-            {t("admin.sendEmail")}
+            Send email
           </label>
-          <button onClick={sendEmailAnnouncement} disabled={sending} className="btn-primary px-4 py-2 text-sm disabled:opacity-50 transition-transform hover:scale-[1.02]">{sending ? t("admin.sending") : t("admin.sendAnnouncement")}</button>
+          <button onClick={sendEmailAnnouncement} disabled={sending} className="btn-primary px-4 py-2 text-sm disabled:opacity-50 transition-transform hover:scale-[1.02]">{sending ? "Sending..." : "Send Announcement"}</button>
         </div>
 
         {audience === "selected" && (

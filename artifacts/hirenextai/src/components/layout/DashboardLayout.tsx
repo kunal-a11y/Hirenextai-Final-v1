@@ -15,7 +15,7 @@ import { useDemoStore } from "@/store/demo";
 import { useToast } from "@/hooks/use-toast";
 import { FloatingChat } from "@/components/FloatingChat";
 import { useSystemTheme } from "@/hooks/use-system-theme";
-import { LANGUAGE_OPTIONS, TranslationKey, tForLanguage, useTranslation } from "@/lib/i18n";
+import { LANGUAGE_OPTIONS, TranslationKey, tForLanguage } from "@/lib/i18n";
 
 const PAGE_TITLES: Record<string, TranslationKey> = {
   jobs: "find_jobs",
@@ -93,7 +93,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const lastNotificationSoundRef = useRef<string>("");
-  const { language, setLanguage, t } = useTranslation();
+  const [language, setLanguage] = useState(localStorage.getItem("hirenext_lang") || "en");
   const [languageSearch, setLanguageSearch] = useState("");
   const [theme, setTheme] = useState(localStorage.getItem("hirenext_theme") || "dark");
   const filteredLanguageOptions = LANGUAGE_OPTIONS.filter((lang) =>
@@ -244,6 +244,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem("hirenext_lang", language);
+    document.documentElement.lang = language;
+  }, [language]);
+
+  useEffect(() => {
     localStorage.setItem("hirenext_theme", theme);
   }, [theme]);
 
@@ -381,12 +386,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       {activePopup && (
         <div className="fixed top-20 right-4 z-[80] w-full max-w-sm glass-panel rounded-xl p-4 border border-primary/30 shadow-2xl">
-          <p className="text-xs text-primary uppercase tracking-wide mb-1">{t("common.notification")}</p>
+          <p className="text-xs text-primary uppercase tracking-wide mb-1">Notification</p>
           <h3 className="text-sm font-semibold text-white">{activePopup.title}</h3>
           <p className="text-sm text-white/70 mt-1">{activePopup.message}</p>
           <div className="mt-3 flex justify-end">
             <button onClick={dismissPopup} className="text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white">
-              {t("common.dismiss")}
+              Dismiss
             </button>
           </div>
         </div>
@@ -490,7 +495,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto glass-panel rounded-xl border border-border shadow-2xl z-50"
                       >
                         <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-                          <p className="text-sm font-semibold text-foreground">{t("common.notification")}</p>
+                          <p className="text-sm font-semibold text-foreground">Notifications</p>
                           <button onClick={markAllNotificationsRead} className="text-xs text-primary hover:opacity-80 transition-colors">
                             Mark all read
                           </button>

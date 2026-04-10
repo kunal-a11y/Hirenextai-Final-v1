@@ -36,7 +36,7 @@ export function Footer() {
             <Link href="/">
               <Logo size="lg" />
             </Link>
-            <p className="mt-4 text-muted-foreground text-sm leading-relaxed max-w-xs">{t("footer.brandDescription")}</p>
+            <p className="mt-4 text-muted-foreground text-sm leading-relaxed max-w-xs">The AI-powered job search platform helping professionals in India land their next role faster, smarter, and with more confidence.</p>
             <div className="flex items-center gap-3 mt-6">
               {socials.map(({ icon: Icon, href, label }) => (
                 <a
@@ -55,7 +55,7 @@ export function Footer() {
 
           {/* About */}
           <div>
-            <h4 className="text-foreground text-sm font-semibold uppercase tracking-wider mb-5">{t("footer.about")}</h4>
+            <h4 className="text-foreground text-sm font-semibold uppercase tracking-wider mb-5">About</h4>
             <ul className="space-y-3">
               {aboutLinks.map(({ label, href }) => (
                 <li key={label}>
@@ -69,7 +69,7 @@ export function Footer() {
 
           {/* Support */}
           <div>
-            <h4 className="text-foreground text-sm font-semibold uppercase tracking-wider mb-5">{t("footer.support")}</h4>
+            <h4 className="text-foreground text-sm font-semibold uppercase tracking-wider mb-5">Support</h4>
             <ul className="space-y-3">
               {supportLinks.map(({ label, href }) => (
                 <li key={label}>
@@ -83,7 +83,7 @@ export function Footer() {
 
           {/* Contact */}
           <div>
-            <h4 className="text-foreground text-sm font-semibold uppercase tracking-wider mb-5">{t("footer.contact")}</h4>
+            <h4 className="text-foreground text-sm font-semibold uppercase tracking-wider mb-5">Contact</h4>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
                 <Mail className="w-4 h-4 text-primary mt-0.5 shrink-0" />
@@ -112,13 +112,13 @@ export function Footer() {
 
         {/* Bottom Row */}
         <div className="flex flex-col items-center gap-4">
-          <p className="text-muted-foreground text-sm text-center">{t("footer.copyright")}</p>
+          <p className="text-muted-foreground text-sm text-center">© 2026 HirenextAI. All rights reserved.</p>
           <div className="flex items-center gap-6 flex-wrap justify-center">
-            <Link href="/privacy-policy" className="text-muted-foreground text-xs hover:text-primary transition-colors duration-200">{t("footer.privacy")}</Link>
-            <Link href="/terms" className="text-muted-foreground text-xs hover:text-primary transition-colors duration-200">{t("footer.terms")}</Link>
-            <Link href="/cookies" className="text-muted-foreground text-xs hover:text-primary transition-colors duration-200">{t("footer.cookies")}</Link>
-            <Link href="/refund-policy" className="text-muted-foreground text-xs hover:text-primary transition-colors duration-200">{t("footer.refund")}</Link>
-            <Link href="/contact" className="text-muted-foreground text-xs hover:text-primary transition-colors duration-200">{t("footer.contact")}</Link>
+            <Link href="/privacy-policy" className="text-muted-foreground text-xs hover:text-primary transition-colors duration-200">Privacy Policy</Link>
+            <Link href="/terms" className="text-muted-foreground text-xs hover:text-primary transition-colors duration-200">Terms of Service</Link>
+            <Link href="/cookies" className="text-muted-foreground text-xs hover:text-primary transition-colors duration-200">Cookie Policy</Link>
+            <Link href="/refund-policy" className="text-muted-foreground text-xs hover:text-primary transition-colors duration-200">Refund Policy</Link>
+            <Link href="/contact" className="text-muted-foreground text-xs hover:text-primary transition-colors duration-200">Contact</Link>
           </div>
         </div>
       </div>

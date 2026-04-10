@@ -13,7 +13,6 @@ import { RecruiterLayout } from "@/components/layout/RecruiterLayout";
 import { CookieConsent } from "@/components/CookieConsent";
 import { DemoTimeoutModal } from "@/components/DemoTimeoutModal";
 import { useSystemTheme } from "@/hooks/use-system-theme";
-import { I18nProvider } from "@/lib/i18n";
 
 const Landing = lazy(() => import("@/pages/Landing"));
 const Auth = lazy(() => import("@/pages/Auth"));
@@ -317,19 +316,17 @@ function App() {
   useSystemTheme();
   return (
     <QueryClientProvider client={queryClient}>
-      <I18nProvider>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <ScrollToTop />
-            <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
-              <Router />
-            </Suspense>
-            <CookieConsent />
-            <DemoTimeoutModal />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
-      </I18nProvider>
+      <TooltipProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <ScrollToTop />
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
+            <Router />
+          </Suspense>
+          <CookieConsent />
+          <DemoTimeoutModal />
+        </WouterRouter>
+        <Toaster />
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

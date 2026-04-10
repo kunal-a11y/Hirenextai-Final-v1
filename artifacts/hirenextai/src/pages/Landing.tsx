@@ -485,14 +485,14 @@ export default function Landing() {
       {demoRoleModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f1020] p-6">
-            <h3 className="text-xl font-bold text-white mb-2">{t("landing.demoModalTitle")}</h3>
+            <h3 className="text-xl font-bold text-white mb-2">Choose your live demo</h3>
             <p className="text-sm text-white/60 mb-5">You can explore without login. Core actions will ask you to sign in.</p>
             <div className="space-y-3">
               <button onClick={() => handleDemoRole("job_seeker")} className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-500 transition">
-                {t("landing.demoJobSeeker")}
+                Continue as Job Seeker
               </button>
               <button onClick={() => handleDemoRole("recruiter")} className="w-full py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-500 transition">
-                {t("landing.demoRecruiter")}
+                Continue as Recruiter
               </button>
               <button onClick={() => setDemoRoleModalOpen(false)} className="w-full py-2 text-sm text-white/60 hover:text-white">
                 Cancel

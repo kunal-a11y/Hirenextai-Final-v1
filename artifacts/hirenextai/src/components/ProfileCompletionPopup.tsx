@@ -112,6 +112,8 @@ export default function ProfileCompletionPopup({ profile, user, onCompleteNow, o
 
   if (hiddenForSession) return null;
 
+  if (hiddenForSession) return null;
+
   return (
     <AnimatePresence>
       <div className="fixed inset-y-4 right-4 z-[70] flex items-start justify-end pointer-events-none" aria-live="polite">
