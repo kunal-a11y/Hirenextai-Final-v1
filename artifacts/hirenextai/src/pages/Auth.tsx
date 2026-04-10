@@ -4,15 +4,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDemoStore } from "@/store/demo";
 import {
   Loader2, Mail, Lock, User, Phone,
-  ArrowRight, ChevronDown, RefreshCw, Sparkles, Briefcase, Building2
+  ArrowRight, ChevronDown, RefreshCw, Sparkles
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "@/lib/i18n";
 
 type Mode = "signin" | "signup";
 type EmailStep = "idle" | "form";
 type PhoneStep = "idle" | "enter_phone" | "enter_otp";
-type Role = "job_seeker" | "recruiter";
 
 function InputRow({
   icon: Icon,
@@ -61,16 +61,17 @@ export default function Auth() {
   const [mode, setMode] = useState<Mode>("signin");
   const [emailStep, setEmailStep] = useState<EmailStep>("idle");
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("idle");
-  const [role, setRole] = useState<Role>("job_seeker");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [otpHint, setOtpHint] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const [isGoogleReady, setIsGoogleReady] = useState(false);
+  const { t } = useTranslation();
   const API = import.meta.env.VITE_API_URL ?? "/api";
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
@@ -89,7 +90,6 @@ export default function Auth() {
     setMode(newMode);
     setEmailStep("idle");
     setPhoneStep("idle");
-    setRole("job_seeker");
     setError("");
     setName(""); setEmail(""); setPassword(""); setPhone(""); setOtp("");
   };
@@ -101,10 +101,7 @@ export default function Auth() {
       if (mode === "signin") {
         await login({ data: { email, password } });
       } else {
-        await register({ data: { name, email, password, role } as any });
-        if (role === "recruiter") {
-          setLocation("/dashboard/recruiter/setup");
-        }
+        await register({ data: { name, email, password } as any });
       }
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || "Something went wrong. Please try again.");
@@ -130,7 +127,7 @@ export default function Auth() {
           const res = await fetch(`${API}/auth/google`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ accessToken: tokenResponse.access_token, role }),
+            body: JSON.stringify({ accessToken: tokenResponse.access_token }),
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data?.message || "Google login failed");
@@ -146,19 +143,45 @@ export default function Auth() {
     tokenClient.requestAccessToken();
   };
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone || phone.replace(/\D/g, "").length < 10) {
       setError("Enter a valid 10-digit phone number.");
       return;
     }
     setError("");
-    setPhoneStep("enter_otp");
+    setOtpHint(null);
+    try {
+      const res = await fetch(`${API}/auth/phone/request-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to send OTP.");
+      setPhoneStep("enter_otp");
+      if (data?.otp) setOtpHint(`Dev OTP: ${data.otp}`);
+    } catch (err: any) {
+      setError(err?.message || "Failed to send OTP.");
+    }
   };
 
-  const handleOtpSubmit = (e: React.FormEvent) => {
+  const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("Phone OTP login is coming soon. Please use email or try the demo.");
+    setError("");
+    try {
+      const res = await fetch(`${API}/auth/phone/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, otp }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "OTP verification failed");
+      localStorage.setItem("hirenext_token", data.token);
+      window.location.href = data.user?.role === "admin" ? "/dashboard/admin" : data.user?.role === "recruiter" ? "/dashboard/recruiter" : "/dashboard/jobs";
+    } catch (err: any) {
+      setError(err?.message || "OTP verification failed");
+    }
   };
 
   const handleDemo = () => {
@@ -206,7 +229,7 @@ export default function Auth() {
                   mode === m ? "text-white" : "text-white/40 hover:text-white/70"
                 }`}
               >
-                {m === "signin" ? "Sign In" : "Sign Up"}
+                {m === "signin" ? t("auth.signIn") : t("auth.signUp")}
                 {mode === m && (
                   <motion.div
                     layoutId="auth-tab-indicator"
@@ -221,12 +244,12 @@ export default function Auth() {
             {/* Headline */}
             <div className="mb-7 text-center">
               <h1 className="text-[1.4rem] font-display font-bold text-white leading-tight">
-                {mode === "signin" ? "Welcome back" : "Get started free"}
+                {mode === "signin" ? t("auth.welcomeBack") : t("auth.getStartedFree")}
               </h1>
               <p className="text-white/40 text-sm mt-1.5">
                 {mode === "signin"
-                  ? "Sign in to your AI career assistant"
-                  : "Your AI-powered job search starts here"}
+                  ? t("auth.signinSubtitle")
+                  : t("auth.signupSubtitle")}
               </p>
             </div>
 
@@ -259,7 +282,7 @@ export default function Auth() {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Continue with Google
+                {t("auth.google")}
                 {googleLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-500" />}
               </button>
 
@@ -273,7 +296,7 @@ export default function Auth() {
                     className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border border-white/[0.12] bg-white/[0.04] text-white/80 text-sm font-medium hover:bg-white/[0.08] hover:border-white/[0.2] hover:text-white transition-all duration-200"
                   >
                     <Phone className="w-4 h-4 shrink-0 text-indigo-400" />
-                    Continue with Phone OTP
+                    {t("auth.continueWithPhone")}
                   </motion.button>
                 )}
 
@@ -291,7 +314,7 @@ export default function Auth() {
                     </div>
                     <InputRow icon={Phone} type="tel" name="phone" placeholder="+91 98765 43210" value={phone} onChange={e => setPhone(e.target.value)} required autoFocus />
                     <button type="submit" className="w-full py-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2">
-                      Send OTP <ArrowRight className="w-4 h-4" />
+                      {t("auth.sendOtp")} <ArrowRight className="w-4 h-4" />
                     </button>
                   </motion.form>
                 )}
@@ -303,6 +326,7 @@ export default function Auth() {
                     onSubmit={handleOtpSubmit}
                     className="space-y-2.5"
                   >
+                    {otpHint && <p className="text-xs text-amber-300/90">{otpHint}</p>}
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-white/40">OTP sent to <strong className="text-white/70">{phone}</strong></span>
                       <button type="button" onClick={() => setPhoneStep("enter_phone")} className="text-xs text-indigo-400/70 hover:text-indigo-400 flex items-center gap-1 transition-colors"><RefreshCw className="w-3 h-3" /> Resend</button>
@@ -315,7 +339,7 @@ export default function Auth() {
                       />
                     </div>
                     <button type="submit" className="w-full py-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-sm font-semibold transition-all duration-200">
-                      Verify OTP
+                      {t("auth.verifyOtp")}
                     </button>
                     <button type="button" onClick={() => { setPhoneStep("idle"); setError(""); }}
                       className="w-full text-center text-xs text-white/30 hover:text-white/50 transition-colors py-1">
@@ -345,7 +369,7 @@ export default function Auth() {
                       className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl border border-white/[0.12] bg-white/[0.04] text-white/60 text-sm font-medium hover:bg-white/[0.08] hover:border-white/[0.2] hover:text-white transition-all duration-200 group"
                     >
                       <Mail className="w-4 h-4 shrink-0 text-white/40 group-hover:text-indigo-400 transition-colors" />
-                      Continue with Email
+                      {t("auth.continueWithEmail")}
                       <ChevronDown className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
                     </motion.button>
                   ) : (
@@ -365,32 +389,12 @@ export default function Auth() {
                           {mode === "signin" ? "Sign in with email" : "Sign up with email"}
                         </span>
                       </div>
-
                       {mode === "signup" && (
-                        <>
-                          {/* Role selector */}
-                          <div className="grid grid-cols-2 gap-2 mb-1">
-                            <button
-                              type="button"
-                              onClick={() => setRole("job_seeker")}
-                              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-xs font-semibold transition-all ${role === "job_seeker" ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-white/[0.03] border-white/10 text-white/40 hover:text-white/70"}`}
-                            >
-                              <Briefcase className="w-3.5 h-3.5" /> Job Seeker
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setRole("recruiter")}
-                              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-xs font-semibold transition-all ${role === "recruiter" ? "bg-purple-500/15 border-purple-500/40 text-purple-400" : "bg-white/[0.03] border-white/10 text-white/40 hover:text-white/70"}`}
-                            >
-                              <Building2 className="w-3.5 h-3.5" /> Recruiter
-                            </button>
-                          </div>
-                          <InputRow icon={User} type="text" name="name" placeholder={role === "recruiter" ? "Your full name" : "Full name"} value={name} onChange={e => setName(e.target.value)} required autoFocus />
-                        </>
+                        <InputRow icon={User} type="text" name="name" placeholder={t("auth.fullName")} value={name} onChange={e => setName(e.target.value)} required autoFocus />
                       )}
 
-                      <InputRow icon={Mail} type="email" name="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoFocus={mode === "signin"} />
-                      <InputRow icon={Lock} type="password" name="password" placeholder={mode === "signin" ? "Password" : "Create password (min. 6)"} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+                      <InputRow icon={Mail} type="email" name="email" placeholder={t("auth.email")} value={email} onChange={e => setEmail(e.target.value)} required autoFocus={mode === "signin"} />
+                      <InputRow icon={Lock} type="password" name="password" placeholder={t("auth.password")} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
 
                       <button
                         type="submit"
@@ -401,7 +405,7 @@ export default function Auth() {
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <>
-                            {mode === "signin" ? "Sign In" : role === "recruiter" ? "Create Recruiter Account" : "Create Account"}
+                            {mode === "signin" ? t("auth.signIn") : t("auth.signUp")}
                             <ArrowRight className="w-4 h-4" />
                           </>
                         )}
@@ -418,7 +422,7 @@ export default function Auth() {
                             });
                             if (res.ok) {
                               setError("");
-                              alert("Password reset email sent (if account exists).");
+                              setError("Reset link sent! Check your email inbox.");
                             } else {
                               setError("Could not send password reset email.");
                             }

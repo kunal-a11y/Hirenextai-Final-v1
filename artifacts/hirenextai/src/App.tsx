@@ -3,47 +3,51 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useAuthStore } from "@/hooks/use-auth";
 import { useDemoStore } from "@/store/demo";
-import { useEffect, useLayoutEffect } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect } from "react";
 import LoginSuccess from "./pages/LoginSuccess";
-
-import Landing from "@/pages/Landing";
-import Auth from "@/pages/Auth";
-import Features from "@/pages/Features";
-import Pricing from "@/pages/Pricing";
-import Contact from "@/pages/Contact";
-import About from "@/pages/About";
-import HelpCenter from "@/pages/HelpCenter";
-import PrivacyPolicy from "@/pages/PrivacyPolicy";
-import Terms from "@/pages/Terms";
-import Cookies from "@/pages/Cookies";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { RecruiterLayout } from "@/components/layout/RecruiterLayout";
-import BoostJobs from "@/pages/dashboard/recruiter/BoostJobs";
-import Jobs from "@/pages/dashboard/Jobs";
-import Applications from "@/pages/dashboard/Applications";
-import AITools from "@/pages/dashboard/AITools";
-import Profile from "@/pages/dashboard/Profile";
-import ResumePage from "@/pages/dashboard/Resume";
-import ChatPage from "@/pages/dashboard/Chat";
-import SubscriptionPage from "@/pages/dashboard/Subscription";
-import RecruiterDashboard from "@/pages/dashboard/recruiter/RecruiterDashboard";
-import PostJob from "@/pages/dashboard/recruiter/PostJob";
-import RecruiterSetup from "@/pages/dashboard/recruiter/RecruiterSetup";
-import RecruiterProfile from "@/pages/dashboard/recruiter/RecruiterProfile";
-import RecruiterAnalytics from "@/pages/dashboard/recruiter/RecruiterAnalytics";
-import EditJob from "@/pages/dashboard/recruiter/EditJob";
-import RecruiterSubscription from "@/pages/dashboard/recruiter/RecruiterSubscription";
-import JobAlerts from "@/pages/dashboard/JobAlerts";
-import SavedJobs from "@/pages/dashboard/SavedJobs";
-import Support from "@/pages/dashboard/support";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminUsers from "@/pages/admin/AdminUsers";
-import RefundPolicy from "@/pages/RefundPolicy";
 import { CookieConsent } from "@/components/CookieConsent";
 import { DemoTimeoutModal } from "@/components/DemoTimeoutModal";
+import { useSystemTheme } from "@/hooks/use-system-theme";
+import { I18nProvider } from "@/lib/i18n";
+
+const Landing = lazy(() => import("@/pages/Landing"));
+const Auth = lazy(() => import("@/pages/Auth"));
+const Features = lazy(() => import("@/pages/Features"));
+const Pricing = lazy(() => import("@/pages/Pricing"));
+const Contact = lazy(() => import("@/pages/Contact"));
+const About = lazy(() => import("@/pages/About"));
+const HelpCenter = lazy(() => import("@/pages/HelpCenter"));
+const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
+const Terms = lazy(() => import("@/pages/Terms"));
+const Cookies = lazy(() => import("@/pages/Cookies"));
+const RefundPolicy = lazy(() => import("@/pages/RefundPolicy"));
+const Jobs = lazy(() => import("@/pages/dashboard/Jobs"));
+const Applications = lazy(() => import("@/pages/dashboard/Applications"));
+const AITools = lazy(() => import("@/pages/dashboard/AITools"));
+const Profile = lazy(() => import("@/pages/dashboard/Profile"));
+const ResumePage = lazy(() => import("@/pages/dashboard/Resume"));
+const ChatPage = lazy(() => import("@/pages/dashboard/Chat"));
+const SubscriptionPage = lazy(() => import("@/pages/dashboard/Subscription"));
+const JobAlerts = lazy(() => import("@/pages/dashboard/JobAlerts"));
+const SavedJobs = lazy(() => import("@/pages/dashboard/SavedJobs"));
+const Support = lazy(() => import("@/pages/dashboard/support"));
+const RecruiterDashboard = lazy(() => import("@/pages/dashboard/recruiter/RecruiterDashboard"));
+const BoostJobs = lazy(() => import("@/pages/dashboard/recruiter/BoostJobs"));
+const PostJob = lazy(() => import("@/pages/dashboard/recruiter/PostJob"));
+const RecruiterSetup = lazy(() => import("@/pages/dashboard/recruiter/RecruiterSetup"));
+const RecruiterProfile = lazy(() => import("@/pages/dashboard/recruiter/RecruiterProfile"));
+const RecruiterAnalytics = lazy(() => import("@/pages/dashboard/recruiter/RecruiterAnalytics"));
+const EditJob = lazy(() => import("@/pages/dashboard/recruiter/EditJob"));
+const RecruiterSubscription = lazy(() => import("@/pages/dashboard/recruiter/RecruiterSubscription"));
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
+const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
+const AdminEmail = lazy(() => import("@/pages/admin/AdminEmail"));
+const AdminNotifications = lazy(() => import("@/pages/admin/AdminNotifications"));
 
 // Inject JWT token into all /api/ requests
 const originalFetch = window.fetch;
@@ -78,8 +82,8 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
   useEffect(() => {
     if (isDemo) return;
-    if (!token) setLocation("/");
-    else if (!isLoading && !isAuthenticated) setLocation("/");
+    if (!token) setLocation("/login");
+    else if (!isLoading && !isAuthenticated) setLocation("/login");
   }, [isDemo, token, isLoading, isAuthenticated, setLocation]);
 
   if (isDemo) {
@@ -112,7 +116,7 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!token) { setLocation("/"); return; }
+    if (!token) { setLocation("/login"); return; }
     if (!isLoading && (!isAuthenticated || user?.role !== "admin")) setLocation("/dashboard/jobs");
   }, [token, isLoading, isAuthenticated, user, setLocation]);
 
@@ -138,7 +142,7 @@ function RecruiterRoute({ component: Component }: { component: React.ComponentTy
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!token) { setLocation("/"); return; }
+    if (!token) { setLocation("/login"); return; }
     if (!isLoading && (!isAuthenticated || user?.role !== "recruiter")) setLocation("/dashboard/jobs");
   }, [token, isLoading, isAuthenticated, user, setLocation]);
 
@@ -191,6 +195,30 @@ function JobsWithRecruiterRedirect() {
   return <ProtectedRoute component={Jobs} />;
 }
 
+function DemoJobSeekerRoute() {
+  const { enableDemo } = useDemoStore();
+  useEffect(() => {
+    enableDemo("job_seeker");
+  }, [enableDemo]);
+  return (
+    <DashboardLayout>
+      <Jobs />
+    </DashboardLayout>
+  );
+}
+
+function DemoRecruiterRoute() {
+  const { enableDemo } = useDemoStore();
+  useEffect(() => {
+    enableDemo("recruiter");
+  }, [enableDemo]);
+  return (
+    <DashboardLayout>
+      <RecruiterDashboard />
+    </DashboardLayout>
+  );
+}
+
 function DashboardIndex() {
 
   const { setToken } = useAuthStore()
@@ -238,6 +266,8 @@ function Router() {
       <Route path="/register" component={() => <PublicRoute component={Auth} />} />
       <Route path="/login-success" component={LoginSuccess} />
       <Route path="/dashboard" component={DashboardIndex} />
+      <Route path="/demo/job-seeker" component={DemoJobSeekerRoute} />
+      <Route path="/demo/recruiter" component={DemoRecruiterRoute} />
       <Route path="/dashboard/jobs" component={JobsWithRecruiterRedirect} />
       <Route path="/dashboard/applications" component={() => <ProtectedRoute component={Applications} />} />
       <Route path="/dashboard/ai-tools" component={() => <ProtectedRoute component={AITools} />} />
@@ -258,6 +288,9 @@ function Router() {
       <Route path="/dashboard/support" component={() => <ProtectedRoute component={Support} />} />
       <Route path="/dashboard/admin/users" component={() => <AdminRoute component={AdminUsers} />} />
       <Route path="/dashboard/admin/tickets" component={() => <AdminRoute component={AdminDashboard} />} />
+      <Route path="/dashboard/admin/announcements" component={() => <AdminRoute component={AdminEmail} />} />
+      <Route path="/admin/announcements" component={() => <AdminRoute component={AdminEmail} />} />
+      <Route path="/dashboard/admin/notifications" component={() => <AdminRoute component={AdminNotifications} />} />
       <Route path="/dashboard/admin/credits" component={() => <AdminRoute component={AdminDashboard} />} />
       <Route path="/dashboard/admin" component={() => <AdminRoute component={AdminDashboard} />} />
       <Route component={NotFound} />
@@ -266,17 +299,22 @@ function Router() {
 }
 
 function App() {
+  useSystemTheme();
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <ScrollToTop />
-          <Router />
-          <CookieConsent />
-          <DemoTimeoutModal />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      <I18nProvider>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <ScrollToTop />
+            <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
+              <Router />
+            </Suspense>
+            <CookieConsent />
+            <DemoTimeoutModal />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </I18nProvider>
     </QueryClientProvider>
   );
 }
