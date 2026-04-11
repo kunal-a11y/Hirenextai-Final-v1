@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useDemoStore } from "@/store/demo";
-import { useTranslation } from "@/lib/i18n";
 
 /* ── Typing effect hook ──────────────────────────────────────────────────── */
 function useTypingText(phrases: string[], speed = 60, pause = 2000) {
@@ -63,7 +62,6 @@ function FadeUp({ children, delay = 0, className = "" }: { children: React.React
 
 export default function Landing() {
   const { enableDemo } = useDemoStore();
-  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoRoleModalOpen, setDemoRoleModalOpen] = useState(false);
@@ -148,7 +146,7 @@ export default function Landing() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="text-5xl md:text-7xl font-display font-extrabold tracking-tight mb-8 leading-tight"
         >
-          {t("landing.titlePrefix")} <br />
+          {"landing.titlePrefix"} <br />
           <span className="text-gradient">
             {typedText}
             <span className="cursor-blink text-indigo-400 ml-0.5">|</span>
@@ -171,7 +169,7 @@ export default function Landing() {
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           <Link href="/register" className="btn-primary py-4 px-8 text-lg w-full sm:w-auto hover:shadow-[0_0_40px_rgba(99,102,241,0.5)] hover:scale-[1.03] transition-all duration-300">
-            {t("landing.startFree")}
+            {"landing.startFree"}
           </Link>
           {/* FIX 3: Was calling undefined setShowDemoRoleModal — now uses setDemoRoleModalOpen */}
           <button
