@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Bell, BellOff, Zap, Calendar, Clock, Mail, MailOff, CheckCircle2,
+  Bell, BellOff, Zap, Calendar, Clock, Mail, CheckCircle2,
   Settings, History, ChevronRight, Loader2, X, Plus, Building2, MapPin,
   Briefcase, Star, Edit2, Save, RefreshCw, Info
 } from "lucide-react";

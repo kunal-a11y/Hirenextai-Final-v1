@@ -89,7 +89,7 @@ router.post("/", authenticate, async (req: AuthRequest, res) => {
 
 router.patch("/:applicationId", authenticate, async (req: AuthRequest, res) => {
   const { applicationId } = req.params;
-  const id = parseInt(applicationId, 10);
+  const id = Number(applicationId);
   const { status, notes, followUpDate, reminderSent } = req.body;
 
   const updates: any = { updatedAt: new Date() };

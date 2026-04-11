@@ -9,6 +9,38 @@ const router = Router();
 const VALID_CATEGORIES = new Set(["bug", "payment", "account", "general"]);
 const VALID_STATUSES = new Set(["open", "in_progress", "resolved"]);
 
+router.post("/ticket", async (req, res) => {
+  const { name, email, subject, message, category = "general" } = req.body ?? {};
+  if (!name || !email || !subject || !message) {
+    res.status(400).json({ error: "Name, email, subject, and message are required." });
+    return;
+  }
+  const normalizedCategory = String(category).toLowerCase();
+  if (!VALID_CATEGORIES.has(normalizedCategory)) {
+    res.status(400).json({ error: "Invalid category. Use bug, payment, account, or general." });
+    return;
+  }
+
+  const created = await db.insert(supportTicketsTable).values({
+    userId: null,
+    name: String(name).trim(),
+    email: String(email).trim(),
+    subject: String(subject).trim(),
+    category: normalizedCategory,
+    message: String(message).trim(),
+    status: "open",
+  });
+
+  const ticketId = Number(created[0].insertId);
+  await db.insert(supportTicketMessagesTable).values({
+    ticketId,
+    sender: "user",
+    message: String(message).trim(),
+  });
+
+  res.status(201).json({ success: true, ticketId });
+});
+
 router.get("/tickets", authenticate, async (req: AuthRequest, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
   const category = typeof req.query.category === "string" ? req.query.category : undefined;

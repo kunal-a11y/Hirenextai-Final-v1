@@ -93,7 +93,7 @@ router.post("/", authenticate, async (req: AuthRequest, res) => {
 
 /* ── DELETE /api/saved-jobs/:jobId — unsave a job ────────────────────────── */
 router.delete("/:jobId", authenticate, async (req: AuthRequest, res) => {
-  const jobId = parseInt(req.params.jobId, 10);
+  const jobId = Number(req.params.jobId);
   await db.delete(savedJobsTable)
     .where(and(eq(savedJobsTable.userId, req.userId!), eq(savedJobsTable.jobId, jobId)));
   res.json({ success: true });
@@ -101,7 +101,7 @@ router.delete("/:jobId", authenticate, async (req: AuthRequest, res) => {
 
 /* ── PATCH /api/saved-jobs/:id/notes — update notes on a saved job ─────── */
 router.patch("/:id/notes", authenticate, async (req: AuthRequest, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = Number(req.params.id);
   const { notes } = req.body;
 
   await db.update(savedJobsTable)
