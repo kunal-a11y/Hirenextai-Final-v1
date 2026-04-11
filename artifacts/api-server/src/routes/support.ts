@@ -43,7 +43,7 @@ router.post("/ticket", async (req, res) => {
   res.status(201).json({ success: true, ticketId });
 });
 
-router.get("/tickets", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
+router.get("/tickets", authenticate, async (req: AuthRequest, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
   const category = typeof req.query.category === "string" ? req.query.category : undefined;
   const conditions: any[] = [eq(supportTicketsTable.userId, req.userId!)];

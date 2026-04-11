@@ -15,46 +15,43 @@ import { useDemoStore } from "@/store/demo";
 import { useToast } from "@/hooks/use-toast";
 import { FloatingChat } from "@/components/FloatingChat";
 import { useSystemTheme } from "@/hooks/use-system-theme";
-import { LANGUAGE_OPTIONS, TranslationKey, tForLanguage } from "@/lib/i18n";
-
-const PAGE_TITLES: Record<string, TranslationKey> = {
-  jobs: "find_jobs",
-  applications: "applications",
-  "ai-tools": "ai_tools",
-  chat: "ai_tools",
-  resume: "resume_studio",
-  profile: "profile",
-  subscription: "subscription",
-  recruiter: "recruiter_dashboard",
-  "post-job": "post_job",
-  "job-alerts": "job_alerts",
-  "saved-jobs": "saved_jobs",
-};
+const LANGUAGE_OPTIONS = [
+  { code: "en", label: "English" },
+  { code: "hi", label: "Hindi" },
+  { code: "bn", label: "Bengali" },
+  { code: "ta", label: "Tamil" },
+  { code: "te", label: "Telugu" },
+  { code: "mr", label: "Marathi" },
+  { code: "gu", label: "Gujarati" },
+  { code: "kn", label: "Kannada" },
+  { code: "ml", label: "Malayalam" },
+  { code: "pa", label: "Punjabi" },
+] as const;
 
 type NavItem = {
   href: string;
   icon: any;
-  label: TranslationKey;
+  label: string;
   exact?: boolean;
 };
 
 const jobSeekerNavItems: NavItem[] = [
-  { href: "/dashboard/jobs", icon: Briefcase, label: "find_jobs" },
-  { href: "/dashboard/applications", icon: FileText, label: "applications" },
-  { href: "/dashboard/saved-jobs", icon: Bookmark, label: "saved_jobs" },
-  { href: "/dashboard/ai-tools", icon: Sparkles, label: "ai_tools" },
-  { href: "/dashboard/resume", icon: ScrollText, label: "resume_studio" },
-  { href: "/dashboard/job-alerts", icon: Bell, label: "job_alerts" },
-  { href: "/dashboard/profile", icon: UserIcon, label: "profile" },
+  { href: "/dashboard/jobs", icon: Briefcase, label: "Find Jobs" },
+  { href: "/dashboard/applications", icon: FileText, label: "Applications" },
+  { href: "/dashboard/saved-jobs", icon: Bookmark, label: "Saved Jobs" },
+  { href: "/dashboard/ai-tools", icon: Sparkles, label: "AI Tools" },
+  { href: "/dashboard/resume", icon: ScrollText, label: "Resume Studio" },
+  { href: "/dashboard/job-alerts", icon: Bell, label: "Job Alerts" },
+  { href: "/dashboard/profile", icon: UserIcon, label: "Profile" },
 ];
 
 const recruiterNavItems: NavItem[] = [
-  { href: "/dashboard/recruiter", icon: Building2, label: "dashboard", exact: true },
-  { href: "/dashboard/recruiter/post-job", icon: Plus, label: "post_job" },
-  { href: "/dashboard/recruiter/boost-jobs", icon: Zap, label: "boost_jobs" },
-  { href: "/dashboard/recruiter/analytics", icon: BarChart3, label: "analytics" },
-  { href: "/dashboard/recruiter/profile", icon: Users, label: "company_profile" },
-  { href: "/dashboard/subscription", icon: CreditCard, label: "subscription" },
+  { href: "/dashboard/recruiter", icon: Building2, label: "Dashboard", exact: true },
+  { href: "/dashboard/recruiter/post-job", icon: Plus, label: "Post Job" },
+  { href: "/dashboard/recruiter/boost-jobs", icon: Zap, label: "Boost Jobs" },
+  { href: "/dashboard/recruiter/analytics", icon: BarChart3, label: "Analytics" },
+  { href: "/dashboard/recruiter/profile", icon: Users, label: "Company Profile" },
+  { href: "/dashboard/subscription", icon: CreditCard, label: "Subscription" },
 ];
 
 const API = import.meta.env.VITE_API_URL ?? "/api";
@@ -349,8 +346,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const currentPage = location.split("/").pop() || "jobs";
-  const pageTitle = PAGE_TITLES[currentPage] || "Dashboard";
   const plan = subscription?.plan ?? user?.subscriptionPlan ?? "free";
   const displayName = isAnyDemoMode ? "Demo User" : (user?.name ?? "User");
   const displayEmail = isAnyDemoMode ? "demo@hirenextai.com" : (user?.email ?? "");
@@ -619,20 +614,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     </div>
 
                     <div className="p-2 border-b border-white/[0.07]">
-                      <p className="text-[10px] text-white/40 uppercase tracking-wider px-3 py-1.5 font-semibold">{tForLanguage(language, "account")}</p>
+                      <p className="text-[10px] text-white/40 uppercase tracking-wider px-3 py-1.5 font-semibold">Account</p>
                       <Link href="/dashboard/subscription" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] text-white/80 hover:text-white">
                         <CreditCard className="w-4 h-4 text-white/50" />
-                        <span className="text-sm font-medium flex-1">{tForLanguage(language, "billing")}</span>
+                        <span className="text-sm font-medium flex-1">Billing</span>
                       </Link>
                       <Link href="/dashboard/support" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] text-white/80 hover:text-white">
                         <MessageCircle className="w-4 h-4 text-white/50" />
-                        <span className="text-sm font-medium flex-1">{tForLanguage(language, "support")}</span>
+                        <span className="text-sm font-medium flex-1">Support</span>
                       </Link>
                     </div>
 
                     <div className="p-3 border-b border-white/[0.07] space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-white/50">{tForLanguage(language, "theme")}</span>
+                        <span className="text-xs text-white/50">Theme</span>
                         <select value={theme} onChange={(e) => setTheme(e.target.value)} className="bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
                           <option value="light">Light</option>
                           <option value="dark">Dark</option>
@@ -640,7 +635,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         </select>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-white/50">{tForLanguage(language, "language")}</span>
+                        <span className="text-xs text-white/50">Language</span>
                         <div className="w-40 space-y-1">
                           <input
                             value={languageSearch}
