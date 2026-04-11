@@ -3,11 +3,13 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db, supportTicketsTable, supportTicketMessagesTable, usersTable } from "@workspace/db";
 import { authenticate, isAdmin, type AuthRequest } from "../middlewares/authenticate.js";
 import { sendSupportReplyEmail } from "../services/emailService.js";
+import { ok, withErrorHandling } from "../lib/apiResponse.js";
 
 const router = Router();
 
 const VALID_CATEGORIES = new Set(["bug", "payment", "account", "general"]);
 const VALID_STATUSES = new Set(["open", "in_progress", "resolved"]);
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 router.post("/ticket", async (req, res) => {
   const { name, email, subject, message, category = "general" } = req.body ?? {};
@@ -62,10 +64,10 @@ router.get("/tickets", authenticate, async (req: AuthRequest, res) => {
     .where(where)
     .orderBy(desc(supportTicketsTable.createdAt));
 
-  res.json(tickets);
-});
+  ok(res, tickets);
+}));
 
-router.post("/tickets", authenticate, async (req: AuthRequest, res) => {
+router.post("/tickets", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
   const { subject, message, category = "general" } = req.body ?? {};
   if (!subject || !message) {
     res.status(400).json({ error: "Subject and message are required." });
@@ -100,10 +102,10 @@ router.post("/tickets", authenticate, async (req: AuthRequest, res) => {
     message: String(message).trim(),
   });
 
-  res.status(201).json({ success: true, ticketId });
-});
+  ok(res, { ticketId }, 201);
+}));
 
-router.get("/tickets/:id/messages", authenticate, async (req: AuthRequest, res) => {
+router.get("/tickets/:id/messages", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID." });
@@ -130,10 +132,10 @@ router.get("/tickets/:id/messages", authenticate, async (req: AuthRequest, res) 
     .where(eq(supportTicketMessagesTable.ticketId, id))
     .orderBy(supportTicketMessagesTable.createdAt);
 
-  res.json(messages);
-});
+  ok(res, messages);
+}));
 
-router.post("/tickets/:id/messages", authenticate, async (req: AuthRequest, res) => {
+router.post("/tickets/:id/messages", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   const { message, sender = "user", attachmentUrl } = req.body ?? {};
   if (Number.isNaN(id) || !message || !String(message).trim()) {
@@ -154,7 +156,7 @@ router.post("/tickets/:id/messages", authenticate, async (req: AuthRequest, res)
     return;
   }
 
-  const safeSender = req.userRole === "admin" ? "admin" : String(sender);
+  const safeSender = req.userRole === "admin" ? "admin" : "user";
   await db.insert(supportTicketMessagesTable).values({
     ticketId: id,
     sender: safeSender,
@@ -171,10 +173,10 @@ router.post("/tickets/:id/messages", authenticate, async (req: AuthRequest, res)
     await sendSupportReplyEmail(ticket.email, ticket.name, ticket.subject || "Support Ticket", String(message).trim());
   }
 
-  res.json({ success: true });
-});
+  ok(res, { message: "Message sent." });
+}));
 
-router.patch("/tickets/:id/status", authenticate, async (req: AuthRequest, res) => {
+router.patch("/tickets/:id/status", authenticate, withErrorHandling(async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   const status = String(req.body?.status ?? "");
   if (Number.isNaN(id) || !VALID_STATUSES.has(status)) {
@@ -191,10 +193,10 @@ router.patch("/tickets/:id/status", authenticate, async (req: AuthRequest, res) 
     return;
   }
   await db.update(supportTicketsTable).set({ status }).where(eq(supportTicketsTable.id, id));
-  res.json({ success: true });
-});
+  ok(res, { status });
+}));
 
-router.get("/metrics/monthly", authenticate, isAdmin, async (_req: AuthRequest, res) => {
+router.get("/metrics/monthly", authenticate, isAdmin, withErrorHandling(async (_req: AuthRequest, res) => {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
   sixMonthsAgo.setDate(1);
@@ -209,7 +211,7 @@ router.get("/metrics/monthly", authenticate, isAdmin, async (_req: AuthRequest, 
     .groupBy(sql`DATE_FORMAT(${supportTicketsTable.createdAt}, '%Y-%m-01')`)
     .orderBy(sql`DATE_FORMAT(${supportTicketsTable.createdAt}, '%Y-%m-01')`);
 
-  res.json(rows);
-});
+  ok(res, rows);
+}));
 
 export default router;

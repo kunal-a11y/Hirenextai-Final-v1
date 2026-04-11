@@ -426,7 +426,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         </span>
                       )}
                     </span>
-                    <span className="hidden min-[900px]:inline">{item.label}</span>
+                    <span className="hidden min-[900px]:inline">{tForLanguage(language, item.label)}</span>
                   </Link>
                 );
               })}
@@ -587,7 +587,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             }`}
                           >
                             <item.icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-white/50 group-hover:text-white/80"}`} />
-                            <span className="text-sm font-medium flex-1">{item.label}</span>
+                            <span className="text-sm font-medium flex-1">{tForLanguage(language, item.label)}</span>
                             {false && (
                               <span className="hidden">
                                 placeholder
@@ -692,7 +692,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         >
                           <LogOut className="w-4 h-4 text-red-400" />
                           <div className="flex-1 text-left">
-                            <span className="text-sm font-semibold text-red-400 block">Logout</span>
+                            <span className="text-sm font-semibold text-red-400 block">{tForLanguage(language, "logout")}</span>
                             <span className="text-[10px] text-white/40">Clear session and return home</span>
                           </div>
                         </button>
@@ -760,7 +760,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             </span>
                           )}
                         </span>
-                        <span className="flex-1">{item.label}</span>
+                        <span className="flex-1">{tForLanguage(language, item.label)}</span>
                         {showBadge && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 font-semibold">
                             {unreadAlerts} new

@@ -1,0 +1,32 @@
+diff a/artifacts/hirenextai/src/pages/dashboard/JobAlerts.tsx b/artifacts/hirenextai/src/pages/dashboard/JobAlerts.tsx	(rejected hunks)
+@@ -1,29 +1,29 @@
+ import { useState, useEffect, useCallback } from "react";
+ import { motion, AnimatePresence } from "framer-motion";
+ import {
+-  Bell, BellOff, Zap, Calendar, Clock, Mail, MailOff, CheckCircle2,
++  Bell, BellOff, Zap, Calendar, Clock, Mail, CheckCircle2,
+   Settings, History, ChevronRight, Loader2, X, Plus, Building2, MapPin,
+   Briefcase, Star, Edit2, Save, RefreshCw, Info
+ } from "lucide-react";
+ import { useAuthStore } from "@/hooks/use-auth";
+ import { useToast } from "@/hooks/use-toast";
+ 
+ const API = import.meta.env.VITE_API_URL ?? "/api";
+ 
+ interface AlertPrefs {
+   id: number;
+   userId: number;
+   enabled: boolean;
+   frequency: string;
+   keywords: string[];
+   skills: string[];
+   locations: string[];
+   openToRemote: boolean;
+   jobTypes: string[];
+   categories: string[];
+   salaryMin: number | null;
+   isFresherOnly: boolean;
+   emailAlerts: boolean;
+   lastSentAt: string | null;
+   createdAt: string;
+   updatedAt: string;

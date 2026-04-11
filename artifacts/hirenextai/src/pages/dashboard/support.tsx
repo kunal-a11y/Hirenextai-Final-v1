@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { Loader2, MessageSquare, Send } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type TicketStatus = "open" | "in_progress" | "resolved";
 type TicketCategory = "bug" | "payment" | "account" | "general";
@@ -28,6 +29,7 @@ interface TicketMessage {
   message: string;
   createdAt: string;
 }
+interface ApiEnvelope<T> { success: boolean; data: T; message?: string; empty?: boolean }
 
 const API = import.meta.env.VITE_API_URL ?? "/api";
 const TEXT = {
@@ -85,7 +87,8 @@ export default function Support() {
     try {
       const res = await fetch(`${API}/support/tickets`, { headers });
       if (!res.ok) throw new Error();
-      setTickets(await res.json());
+      const payload = await res.json() as ApiEnvelope<Ticket[]>;
+      setTickets(payload.data ?? []);
     } catch {
       toast({ title: "Failed to load support tickets", variant: "destructive" });
     } finally {
@@ -98,7 +101,8 @@ export default function Support() {
     try {
       const res = await fetch(`${API}/support/tickets/${ticket.id}/messages`, { headers });
       if (!res.ok) throw new Error();
-      setMessages(await res.json());
+      const payload = await res.json() as ApiEnvelope<TicketMessage[]>;
+      setMessages(payload.data ?? []);
     } catch {
       toast({ title: "Failed to load ticket thread", variant: "destructive" });
     }
@@ -217,7 +221,13 @@ export default function Support() {
         <Card className="glass-card">
           <CardHeader><CardTitle>{t.yourTickets}</CardTitle></CardHeader>
           <CardContent className="space-y-3 max-h-[420px] overflow-y-auto">
-            {loading ? <p className="text-white/40 text-sm">{t.loading}</p> : tickets.length === 0 ? <p className="text-white/40 text-sm">{t.empty}</p> : tickets.map((ticket) => (
+            {loading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-16 w-full bg-white/10" />
+                <Skeleton className="h-16 w-full bg-white/10" />
+                <Skeleton className="h-16 w-full bg-white/10" />
+              </div>
+            ) : tickets.length === 0 ? <p className="text-white/40 text-sm">{t.empty}</p> : tickets.map((ticket) => (
               <button key={ticket.id} onClick={() => openTicket(ticket)} className="w-full text-left p-3 rounded-xl border border-white/10 hover:bg-white/5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-white truncate">{ticket.subject}</p>

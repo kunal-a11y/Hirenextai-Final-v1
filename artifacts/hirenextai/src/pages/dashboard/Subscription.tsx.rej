@@ -1,0 +1,43 @@
+diff a/artifacts/hirenextai/src/pages/dashboard/Subscription.tsx b/artifacts/hirenextai/src/pages/dashboard/Subscription.tsx	(rejected hunks)
+@@ -1,39 +1,39 @@
+ import { useState } from "react";
+ import { useGetSubscription, useUpdateSubscription, useGetAIUsage } from "@workspace/api-client-react";
+ import {
+   CheckCircle2, X, Loader2, Crown, Zap, Sparkles, ArrowRight, Lock,
+ } from "lucide-react";
+ import { motion } from "framer-motion";
+ 
+ /* ── Feature comparison table data ──────────────────────────────────── */
+ 
+ interface Feature {
+   label: string;
+   free: string | false;
+-  pro: string | true;
+-  premium: string | true;
++  pro: string | true | false;
++  premium: string | true | false;
+ }
+ 
+ const FEATURES: Feature[] = [
+   { label: "Job Board Access",          free: "Full access",     pro: true,            premium: true },
+   { label: "Application Tracker",       free: "Up to 10 jobs",  pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Cover Letter Generator",    free: "3 / month",       pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Resume Bullet Optimizer",   free: "5 / month",       pro: "Unlimited",     premium: "Unlimited" },
+   { label: "AI Chat (HireBot)",         free: "20 msg / month",  pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Job Match Score",           free: "3 / month",       pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Career Suggestions",        free: "2 / month",       pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Job Description Simplifier",free: "10 / month",      pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Recruiter Outreach AI",     free: false,             pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Interview Prep AI",         free: false,             pro: "Unlimited",     premium: "Unlimited" },
+   { label: "Priority Support",          free: false,             pro: true,            premium: true },
+   { label: "1-on-1 Career Coaching",    free: false,             pro: false,           premium: "1 session / mo" },
+   { label: "Priority AI Response",      free: false,             pro: false,           premium: true },
+ ];
+ 
+ /* ── Cell renderer ───────────────────────────────────────────────────── */
+ function Cell({ value }: { value: string | boolean | false }) {
+   if (value === false) return <X className="w-4 h-4 text-white/20 mx-auto" />;
+   if (value === true)  return <CheckCircle2 className="w-4 h-4 text-indigo-400 mx-auto" />;
+   return <span className="text-xs text-white/70 text-center block">{value}</span>;
+ }
+ 
