@@ -15,6 +15,7 @@ import { useDemoStore } from "@/store/demo";
 import { useToast } from "@/hooks/use-toast";
 import { FloatingChat } from "@/components/FloatingChat";
 import { useSystemTheme } from "@/hooks/use-system-theme";
+
 const LANGUAGE_OPTIONS = [
   { code: "en", label: "English" },
   { code: "hi", label: "Hindi" },
@@ -36,25 +37,26 @@ type NavItem = {
 };
 
 const jobSeekerNavItems: NavItem[] = [
-  { href: "/dashboard/jobs", icon: Briefcase, label: "Find Jobs" },
-  { href: "/dashboard/applications", icon: FileText, label: "Applications" },
-  { href: "/dashboard/saved-jobs", icon: Bookmark, label: "Saved Jobs" },
-  { href: "/dashboard/ai-tools", icon: Sparkles, label: "AI Tools" },
-  { href: "/dashboard/resume", icon: ScrollText, label: "Resume Studio" },
-  { href: "/dashboard/job-alerts", icon: Bell, label: "Job Alerts" },
-  { href: "/dashboard/profile", icon: UserIcon, label: "Profile" },
+  { href: "/dashboard/jobs",         icon: Briefcase,  label: "Find Jobs" },
+  { href: "/dashboard/applications", icon: FileText,   label: "Applications" },
+  { href: "/dashboard/saved-jobs",   icon: Bookmark,   label: "Saved Jobs" },
+  { href: "/dashboard/ai-tools",     icon: Sparkles,   label: "AI Tools" },
+  { href: "/dashboard/resume",       icon: ScrollText, label: "Resume Studio" },
+  { href: "/dashboard/job-alerts",   icon: Bell,       label: "Job Alerts" },
+  { href: "/dashboard/profile",      icon: UserIcon,   label: "Profile" },
 ];
 
 const recruiterNavItems: NavItem[] = [
-  { href: "/dashboard/recruiter", icon: Building2, label: "Dashboard", exact: true },
-  { href: "/dashboard/recruiter/post-job", icon: Plus, label: "Post Job" },
-  { href: "/dashboard/recruiter/boost-jobs", icon: Zap, label: "Boost Jobs" },
-  { href: "/dashboard/recruiter/analytics", icon: BarChart3, label: "Analytics" },
-  { href: "/dashboard/recruiter/profile", icon: Users, label: "Company Profile" },
-  { href: "/dashboard/subscription", icon: CreditCard, label: "Subscription" },
+  { href: "/dashboard/recruiter",            icon: Building2,  label: "Dashboard", exact: true },
+  { href: "/dashboard/recruiter/post-job",   icon: Plus,       label: "Post Job" },
+  { href: "/dashboard/recruiter/boost-jobs", icon: Zap,        label: "Boost Jobs" },
+  { href: "/dashboard/recruiter/analytics",  icon: BarChart3,  label: "Analytics" },
+  { href: "/dashboard/recruiter/profile",    icon: Users,      label: "Company Profile" },
+  { href: "/dashboard/subscription",         icon: CreditCard, label: "Subscription" },
 ];
 
 const API = import.meta.env.VITE_API_URL ?? "/api";
+
 type DashboardNotification = {
   id: number;
   title: string;
@@ -105,6 +107,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   profileRef.current = profile;
 
   const lowCreditWarnedRef = useRef(false);
+
   const getDismissedIds = () => {
     try {
       return JSON.parse(localStorage.getItem(DISMISSED_NOTIFICATION_KEY) || "[]") as number[];
@@ -112,20 +115,24 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       return [];
     }
   };
+
   const dismissPopupLocally = (id: number) => {
     const next = Array.from(new Set([...getDismissedIds(), id]));
     localStorage.setItem(DISMISSED_NOTIFICATION_KEY, JSON.stringify(next));
   };
+
   const getExpiry = (n: DashboardNotification): Date | null => {
     const raw = String(n.audience || "").split("|expires:")[1];
     if (!raw) return null;
     const parsed = new Date(raw);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   };
+
   const isExpired = (n: DashboardNotification) => {
     const expiry = getExpiry(n);
     return !!expiry && expiry.getTime() <= Date.now();
   };
+
   const playNotificationSound = () => {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -141,7 +148,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     } catch {}
   };
 
-  // Poll unread alert count every 2 minutes (skip for demo/recruiter)
   const fetchUnreadAlerts = useCallback(async () => {
     if (isAnyDemoMode || isRecruiter || !token) return;
     try {
@@ -187,18 +193,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [fetchUnreadAlerts, fetchAdminNotifications]);
 
-  // Clear badge when user visits Job Alerts page
   useEffect(() => {
     if (location === "/dashboard/job-alerts" && unreadAlerts > 0) {
       setUnreadAlerts(0);
     }
   }, [location]);
 
-  // Warn when AI credits are running low (< 5)
   useEffect(() => {
     if (isAnyDemoMode || !usage) return;
     const creditsLeft = (usage as any).creditsLeft;
-    if (creditsLeft == null || creditsLeft < 0) return; // unlimited plan
+    if (creditsLeft == null || creditsLeft < 0) return;
     if (!lowCreditWarnedRef.current && creditsLeft > 0 && creditsLeft < 5) {
       lowCreditWarnedRef.current = true;
       toast({
@@ -217,7 +221,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [(usage as any)?.creditsLeft, isAnyDemoMode]);
 
   useEffect(() => {
-    // Never show popup for recruiters, admins, or demo sessions
     if (isRecruiter || isAdmin || isAnyDemoMode) return;
     if (!isProfileLoading && profile) {
       if (profile.completionPct >= 60) {
@@ -261,13 +264,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const handlePopupRemindLater = () => {
     setShowProfilePopup(false);
-    // localStorage cooldown is already set when popup opened; nothing more needed here
     if (remindTimerRef.current) {
       clearTimeout(remindTimerRef.current);
       remindTimerRef.current = null;
     }
   };
-
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -282,13 +283,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-
   const handleExitDemo = () => {
     setDropdownOpen(false);
     setIsMobileMenuOpen(false);
     clearExpired();
     disableDemo();
-    // Clear any stale auth token so PublicRoutes don't misbehave after demo
     useAuthStore.getState().clearStore();
     toast({ title: "Demo session ended", description: "Create a free account to save your progress.", duration: 3000 });
     setLocation("/login");
@@ -305,10 +304,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   };
 
   const dismissPopup = async () => {
-    if (!activePopup || !token) {
-      setActivePopup(null);
-      return;
-    }
+    if (!activePopup || !token) { setActivePopup(null); return; }
     dismissPopupLocally(activePopup.id);
     try {
       await fetch(`${API}/notifications/${activePopup.id}/read`, {
@@ -353,8 +349,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const PlanBadge = ({ size = "sm" }: { size?: "xs" | "sm" }) => {
     const colors: Record<string, string> = {
-      free: "bg-white/5 text-white/60 border-white/10",
-      pro: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+      free:    "bg-white/5 text-white/60 border-white/10",
+      pro:     "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
       premium: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     };
     return (
@@ -393,16 +389,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex flex-1 flex-col bg-background overflow-hidden min-h-0">
-        {/* Top Navigation Bar */}
+
+        {/* ── TOP NAV ── */}
         <header className="sticky top-0 h-14 shrink-0 z-40 border-b border-white/[0.07] bg-[#0a0a14]/80 backdrop-blur-[12px]">
           <div className="h-full max-w-[1200px] mx-auto px-4 flex items-center gap-2">
 
-            {/* Logo — always visible, never shrinks */}
             <Link href="/dashboard/jobs" className="shrink-0 flex items-center mr-1">
               <Logo size="sm" />
             </Link>
 
-            {/* Nav — fills remaining space, horizontally scrollable */}
             <nav className="hidden sm:flex flex-1 min-w-0 overflow-x-auto scrollbar-none items-center gap-0.5">
               {navItems.map((item) => {
                 const isActive = (item as any).exact ? location === item.href : location.startsWith(item.href);
@@ -413,9 +408,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 whitespace-nowrap ${
-                      isActive
-                        ? "bg-primary/[0.12] text-primary"
-                        : "text-white/60 hover:text-white hover:bg-white/[0.08]"
+                      isActive ? "bg-primary/[0.12] text-primary" : "text-white/60 hover:text-white hover:bg-white/[0.08]"
                     }`}
                   >
                     <span className="relative shrink-0">
@@ -426,7 +419,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         </span>
                       )}
                     </span>
-                    <span className="hidden min-[900px]:inline">{tForLanguage(language, item.label)}</span>
+                    {/* ✅ FIX: was tForLanguage(language, item.label) */}
+                    <span className="hidden min-[900px]:inline">{item.label}</span>
                   </Link>
                 );
               })}
@@ -434,9 +428,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <Link
                   href="/dashboard/admin"
                   className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 whitespace-nowrap ${
-                    location.startsWith("/dashboard/admin")
-                      ? "bg-red-500/[0.12] text-red-400"
-                      : "text-red-400/60 hover:text-red-400 hover:bg-red-500/[0.08]"
+                    location.startsWith("/dashboard/admin") ? "bg-red-500/[0.12] text-red-400" : "text-red-400/60 hover:text-red-400 hover:bg-red-500/[0.08]"
                   }`}
                 >
                   <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
@@ -445,9 +437,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               )}
             </nav>
 
-            {/* Right section — always visible, never shrinks */}
+            {/* ── RIGHT SECTION ── */}
             <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-              {/* AI Credits badge */}
+
+              {/* AI Credits */}
               {!isAnyDemoMode && (usage as any)?.creditsLeft != null && (usage as any).creditsLeft >= 0 && (
                 <Link href="/dashboard/ai-tools">
                   <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] font-semibold transition-colors cursor-pointer ${
@@ -465,6 +458,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               )}
 
+              {/* Notification Bell */}
               {!isAnyDemoMode && (
                 <div ref={notificationRef} className="relative">
                   <button
@@ -479,7 +473,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       </span>
                     )}
                   </button>
-
                   <AnimatePresence>
                     {notificationOpen && (
                       <motion.div
@@ -491,9 +484,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       >
                         <div className="px-3 py-2 border-b border-border flex items-center justify-between">
                           <p className="text-sm font-semibold text-foreground">Notifications</p>
-                          <button onClick={markAllNotificationsRead} className="text-xs text-primary hover:opacity-80 transition-colors">
-                            Mark all read
-                          </button>
+                          <button onClick={markAllNotificationsRead} className="text-xs text-primary hover:opacity-80 transition-colors">Mark all read</button>
                         </div>
                         <div className="p-2 space-y-1">
                           {notificationsLoading && (
@@ -506,13 +497,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             <p className="text-xs text-muted-foreground px-2 py-3 text-center">No notifications</p>
                           )}
                           {adminNotifications.map((n) => (
-                            <button
-                              key={n.id}
-                              onClick={() => markNotificationRead(n.id)}
+                            <button key={n.id} onClick={() => markNotificationRead(n.id)}
                               className={`w-full text-left p-2 rounded-lg border transition-colors ${
                                 n.isRead ? "border-border bg-card/70 text-muted-foreground" : "border-primary/30 bg-primary/10 text-foreground"
-                              }`}
-                            >
+                              }`}>
                               <p className="text-sm font-medium">{n.title}</p>
                               <p className="text-xs mt-0.5 opacity-80">{n.message}</p>
                             </button>
@@ -524,209 +512,179 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </div>
               )}
 
-              {/* Plan badge */}
+              {/* Plan Badge */}
               {!isAnyDemoMode && <PlanBadge />}
 
+              {/* Demo Exit Button */}
               {isAnyDemoMode && (
-                <button
-                  onClick={handleExitDemo}
-                  className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-medium hover:bg-amber-500/20 transition-colors whitespace-nowrap"
-                >
+                <button onClick={handleExitDemo}
+                  className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-medium hover:bg-amber-500/20 transition-colors whitespace-nowrap">
                   Demo · <span className="underline">Exit</span>
                 </button>
               )}
 
-              {/* Avatar Dropdown */}
+              {/* ── AVATAR DROPDOWN ── */}
               <div ref={dropdownRef} className="relative">
-                <button
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  title="Profile Settings"
-                  className="flex items-center gap-1.5 px-1.5 py-1.5 rounded-xl hover:bg-white/[0.08] border border-transparent hover:border-white/[0.12] transition-all duration-200"
-                >
+                <button onClick={() => setDropdownOpen(!dropdownOpen)} title="Profile Settings"
+                  className="flex items-center gap-1.5 px-1.5 py-1.5 rounded-xl hover:bg-white/[0.08] border border-transparent hover:border-white/[0.12] transition-all duration-200">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-xs font-bold text-white shrink-0">
                     {initials}
                   </div>
                   <ChevronDown className={`w-3.5 h-3.5 text-white/40 transition-transform duration-200 hidden sm:block ${dropdownOpen ? "rotate-180" : ""}`} />
                 </button>
 
-              <AnimatePresence>
-                {dropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -8 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -8 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-80 glass-panel rounded-2xl border border-white/10 shadow-2xl z-50 flex flex-col max-h-[calc(100vh-5rem)] overflow-y-auto overflow-x-hidden"
-                  >
-                    {/* User Info Header */}
-                    <div className="p-4 border-b border-white/[0.07]">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-sm font-bold text-white shrink-0">
-                          {initials}
+                <AnimatePresence>
+                  {dropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 w-80 glass-panel rounded-2xl border border-white/10 shadow-2xl z-50 flex flex-col max-h-[calc(100vh-5rem)] overflow-y-auto overflow-x-hidden"
+                    >
+                      {/* User Info */}
+                      <div className="p-4 border-b border-white/[0.07]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                            {initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-white text-sm truncate">{displayName}</p>
+                            <p className="text-xs text-white/40 truncate">{displayEmail}</p>
+                          </div>
+                          <PlanBadge size="xs" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-white text-sm truncate">{displayName}</p>
-                          <p className="text-xs text-white/40 truncate">{displayEmail}</p>
-                        </div>
-                        <PlanBadge size="xs" />
                       </div>
-                    </div>
 
-                    {/* Nav items inside dropdown */}
-                    <div className="p-2 border-b border-white/[0.07]">
-                      <p className="text-[10px] text-white/40 uppercase tracking-wider px-3 py-1.5 font-semibold">Navigate</p>
-                      {navItems.map((item) => {
-                        const isActive = (item as any).exact ? location === item.href : location.startsWith(item.href);
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => setDropdownOpen(false)}
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors group w-full ${
-                              isActive ? "bg-primary/[0.12] text-primary" : "hover:bg-white/[0.09] text-white/80 hover:text-white"
-                            }`}
-                          >
-                            <item.icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-white/50 group-hover:text-white/80"}`} />
-                            <span className="text-sm font-medium flex-1">{tForLanguage(language, item.label)}</span>
-                            {false && (
-                              <span className="hidden">
-                                placeholder
-                              </span>
-                            )}
+                      {/* Nav Links */}
+                      <div className="p-2 border-b border-white/[0.07]">
+                        <p className="text-[10px] text-white/40 uppercase tracking-wider px-3 py-1.5 font-semibold">Navigate</p>
+                        {navItems.map((item) => {
+                          const isActive = (item as any).exact ? location === item.href : location.startsWith(item.href);
+                          return (
+                            <Link key={item.href} href={item.href} onClick={() => setDropdownOpen(false)}
+                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors group w-full ${
+                                isActive ? "bg-primary/[0.12] text-primary" : "hover:bg-white/[0.09] text-white/80 hover:text-white"
+                              }`}>
+                              <item.icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-white/50 group-hover:text-white/80"}`} />
+                              {/* ✅ FIX: was tForLanguage(language, item.label) */}
+                              <span className="text-sm font-medium flex-1">{item.label}</span>
+                            </Link>
+                          );
+                        })}
+                        {isAdmin && (
+                          <Link href="/dashboard/admin" onClick={() => setDropdownOpen(false)}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors group w-full mt-1 ${
+                              location.startsWith("/dashboard/admin") ? "bg-red-500/[0.15] text-red-400" : "hover:bg-white/[0.09] text-white/80 hover:text-white"
+                            }`}>
+                            <ShieldAlert className={`w-4 h-4 ${location.startsWith("/dashboard/admin") ? "text-red-400" : "text-white/50 group-hover:text-white/80"}`} />
+                            <span className="text-sm font-medium flex-1">Admin Panel</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold uppercase tracking-wide">Admin</span>
                           </Link>
-                        );
-                      })}
-                      {isAdmin && (
-                        <Link
-                          href="/dashboard/admin"
-                          onClick={() => setDropdownOpen(false)}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors group w-full mt-1 ${
-                            location.startsWith("/dashboard/admin")
-                              ? "bg-red-500/[0.15] text-red-400"
-                              : "hover:bg-white/[0.09] text-white/80 hover:text-white"
-                          }`}
-                        >
-                          <ShieldAlert className={`w-4 h-4 ${location.startsWith("/dashboard/admin") ? "text-red-400" : "text-white/50 group-hover:text-white/80"}`} />
-                          <span className="text-sm font-medium flex-1">Admin Panel</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold uppercase tracking-wide">Admin</span>
-                        </Link>
-                      )}
-                    </div>
-
-                    <div className="p-2 border-b border-white/[0.07]">
-                      <p className="text-[10px] text-white/40 uppercase tracking-wider px-3 py-1.5 font-semibold">Account</p>
-                      <Link href="/dashboard/subscription" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] text-white/80 hover:text-white">
-                        <CreditCard className="w-4 h-4 text-white/50" />
-                        <span className="text-sm font-medium flex-1">Billing</span>
-                      </Link>
-                      <Link href="/dashboard/support" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] text-white/80 hover:text-white">
-                        <MessageCircle className="w-4 h-4 text-white/50" />
-                        <span className="text-sm font-medium flex-1">Support</span>
-                      </Link>
-                    </div>
-
-                    <div className="p-3 border-b border-white/[0.07] space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-white/50">Theme</span>
-                        <select value={theme} onChange={(e) => setTheme(e.target.value)} className="bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
-                          <option value="light">Light</option>
-                          <option value="dark">Dark</option>
-                          <option value="system">System</option>
-                        </select>
+                        )}
                       </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-white/50">Language</span>
-                        <div className="w-40 space-y-1">
-                          <input
-                            value={languageSearch}
-                            onChange={(e) => setLanguageSearch(e.target.value)}
-                            placeholder="Search language"
-                            className="w-full bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs"
-                          />
-                          <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
-                            {filteredLanguageOptions.map((lang) => (
-                              <option key={lang.code} value={lang.code}>{lang.label}</option>
-                            ))}
+
+                      {/* Account Links */}
+                      <div className="p-2 border-b border-white/[0.07]">
+                        <p className="text-[10px] text-white/40 uppercase tracking-wider px-3 py-1.5 font-semibold">Account</p>
+                        <Link href="/dashboard/subscription" onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] text-white/80 hover:text-white">
+                          <CreditCard className="w-4 h-4 text-white/50" />
+                          <span className="text-sm font-medium flex-1">Billing</span>
+                        </Link>
+                        <Link href="/dashboard/support" onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] text-white/80 hover:text-white">
+                          <MessageCircle className="w-4 h-4 text-white/50" />
+                          <span className="text-sm font-medium flex-1">Support</span>
+                        </Link>
+                      </div>
+
+                      {/* Theme & Language */}
+                      <div className="p-3 border-b border-white/[0.07] space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-white/50">Theme</span>
+                          <select value={theme} onChange={(e) => setTheme(e.target.value)} className="bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                            <option value="system">System</option>
                           </select>
                         </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-white/50">Language</span>
+                          <div className="w-40 space-y-1">
+                            <input value={languageSearch} onChange={(e) => setLanguageSearch(e.target.value)} placeholder="Search language"
+                              className="w-full bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs" />
+                            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 text-slate-100 border border-slate-600 rounded px-2 py-1 text-xs">
+                              {filteredLanguageOptions.map((lang) => (
+                                <option key={lang.code} value={lang.code}>{lang.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
+                      {/* Upgrade CTA */}
+                      {!isAnyDemoMode && plan === "free" && (
+                        <div className="p-3 border-b border-white/[0.07]">
+                          <Link href="/dashboard/subscription" onClick={() => setDropdownOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 hover:border-primary/50 transition-all group">
+                            <Crown className="w-4 h-4 text-amber-400" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-white">Upgrade Plan</p>
+                              <p className="text-[11px] text-white/40">Unlock Recruiter Outreach, Interview Prep & more</p>
+                            </div>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/30 text-primary border border-primary/30 font-semibold">Pro</span>
+                          </Link>
+                        </div>
+                      )}
 
-                    {/* Upgrade CTA */}
-                    {!isAnyDemoMode && plan === "free" && (
-                      <div className="p-3 border-b border-white/[0.07]">
-                        <Link
-                          href="/dashboard/subscription"
-                          onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 hover:border-primary/50 transition-all group"
-                        >
-                          <Crown className="w-4 h-4 text-amber-400" />
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-white">Upgrade Plan</p>
-                            <p className="text-[11px] text-white/40">Unlock Recruiter Outreach, Interview Prep & more</p>
-                          </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/30 text-primary border border-primary/30 font-semibold">Pro</span>
-                        </Link>
+                      {/* Logout / Exit Demo */}
+                      <div className="sticky bottom-0 px-2 pt-1 pb-2 border-t border-white/[0.07] space-y-0.5" style={{ background: "hsl(240 32% 8% / 0.98)" }}>
+                        {isDemoMode && (
+                          <button onClick={handleExitDemo}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/[0.12] active:bg-red-500/20 transition-colors w-full">
+                            <LogOut className="w-4 h-4 text-red-400" />
+                            <div className="flex-1 text-left">
+                              <span className="text-sm font-semibold text-red-400 block">Exit Demo</span>
+                              <span className="text-[10px] text-white/40">Return to home page</span>
+                            </div>
+                          </button>
+                        )}
+                        {token && !isDemoMode && (
+                          <button onClick={handleLogout}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/[0.12] active:bg-red-500/20 transition-colors w-full">
+                            <LogOut className="w-4 h-4 text-red-400" />
+                            <div className="flex-1 text-left">
+                              {/* ✅ FIX: was tForLanguage(language, "logout") */}
+                              <span className="text-sm font-semibold text-red-400 block">Logout</span>
+                              <span className="text-[10px] text-white/40">Clear session and return home</span>
+                            </div>
+                          </button>
+                        )}
                       </div>
-                    )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
-                    {/* Exit Demo (demo sessions only) + Logout (real auth only) — sticky at bottom */}
-                    <div className="sticky bottom-0 px-2 pt-1 pb-2 border-t border-white/[0.07] space-y-0.5" style={{ background: "hsl(240 32% 8% / 0.98)" }}>
-                      {isDemoMode && (
-                        <button
-                          onClick={handleExitDemo}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/[0.12] active:bg-red-500/20 transition-colors w-full"
-                        >
-                          <LogOut className="w-4 h-4 text-red-400" />
-                          <div className="flex-1 text-left">
-                            <span className="text-sm font-semibold text-red-400 block">Exit Demo</span>
-                            <span className="text-[10px] text-white/40">Return to home page</span>
-                          </div>
-                        </button>
-                      )}
-                      {token && !isDemoMode && (
-                        <button
-                          onClick={handleLogout}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/[0.12] active:bg-red-500/20 transition-colors w-full"
-                        >
-                          <LogOut className="w-4 h-4 text-red-400" />
-                          <div className="flex-1 text-left">
-                            <span className="text-sm font-semibold text-red-400 block">{tForLanguage(language, "logout")}</span>
-                            <span className="text-[10px] text-white/40">Clear session and return home</span>
-                          </div>
-                        </button>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              </div>{/* /dropdownRef */}
-
-              {/* Mobile Hamburger — only on very small screens */}
-              <button
-                onClick={() => setIsMobileMenuOpen(true)}
-                className="sm:hidden p-1.5 text-white/70 hover:text-white hover:bg-white/[0.09] rounded-lg transition-colors"
-              >
+              {/* Mobile Hamburger */}
+              <button onClick={() => setIsMobileMenuOpen(true)}
+                className="sm:hidden p-1.5 text-white/70 hover:text-white hover:bg-white/[0.09] rounded-lg transition-colors">
                 <Menu className="w-5 h-5" />
               </button>
-            </div>{/* /right section */}
-          </div>{/* /max-width wrapper */}
+            </div>
+          </div>
         </header>
 
-        {/* Mobile Drawer */}
+        {/* ── MOBILE DRAWER ── */}
         <AnimatePresence>
           {isMobileMenuOpen && (
             <>
-              <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden"
-                onClick={() => setIsMobileMenuOpen(false)}
-              />
+                onClick={() => setIsMobileMenuOpen(false)} />
               <motion.div
-                initial={{ x: "100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "100%" }}
+                initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
                 transition={{ type: "spring", bounce: 0, duration: 0.3 }}
                 className="fixed right-0 top-0 h-full w-72 glass-panel z-50 flex flex-col"
               >
@@ -742,16 +700,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     const isAlertItem = item.href === "/dashboard/job-alerts";
                     const showBadge = isAlertItem && unreadAlerts > 0 && !isActive;
                     return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setIsMobileMenuOpen(false)}
+                      <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 group ${
                           isActive
                             ? "bg-primary/[0.12] text-primary border border-primary/25"
                             : "text-white/75 hover:text-white hover:bg-white/[0.09] border border-transparent"
-                        }`}
-                      >
+                        }`}>
                         <span className="relative">
                           <item.icon className={`w-5 h-5 shrink-0 ${isActive ? "text-primary" : "text-white/50 group-hover:text-white/80"}`} />
                           {showBadge && (
@@ -760,7 +714,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             </span>
                           )}
                         </span>
-                        <span className="flex-1">{tForLanguage(language, item.label)}</span>
+                        {/* ✅ FIX: was tForLanguage(language, item.label) */}
+                        <span className="flex-1">{item.label}</span>
                         {showBadge && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 font-semibold">
                             {unreadAlerts} new
@@ -770,15 +725,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     );
                   })}
                   {isAdmin && (
-                    <Link
-                      href="/dashboard/admin"
-                      onClick={() => setIsMobileMenuOpen(false)}
+                    <Link href="/dashboard/admin" onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 group ${
                         location.startsWith("/dashboard/admin")
                           ? "bg-red-500/[0.12] text-red-400 border border-red-500/20"
                           : "text-white/75 hover:text-white hover:bg-white/[0.09] border border-transparent"
-                      }`}
-                    >
+                      }`}>
                       <ShieldAlert className={`w-5 h-5 shrink-0 ${location.startsWith("/dashboard/admin") ? "text-red-400" : "text-white/50 group-hover:text-white/80"}`} />
                       <span className="flex-1">Admin Panel</span>
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold uppercase tracking-wide">Admin</span>
@@ -787,19 +739,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </nav>
                 <div className="px-3 pb-4 border-t border-white/[0.07] pt-3 space-y-2">
                   {isDemoMode && (
-                    <button
-                      onClick={handleExitDemo}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors text-sm border border-red-500/20 hover:border-red-500/30"
-                    >
+                    <button onClick={handleExitDemo}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors text-sm border border-red-500/20 hover:border-red-500/30">
                       <LogOut className="w-4 h-4" />
                       Exit Demo
                     </button>
                   )}
                   {token && !isDemoMode && (
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors text-sm border border-red-500/20 hover:border-red-500/30"
-                    >
+                    <button onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors text-sm border border-red-500/20 hover:border-red-500/30">
                       <LogOut className="w-4 h-4" />
                       Logout
                     </button>
@@ -810,21 +758,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           )}
         </AnimatePresence>
 
-        {/* Full-Width Main Content */}
+        {/* ── MAIN CONTENT ── */}
         <main className="flex-1 overflow-y-auto">
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
-            <motion.div
-              key={location}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key={location} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               {children}
             </motion.div>
           </div>
         </main>
 
-        {/* Floating AI Chat — visible on all dashboard pages */}
         <FloatingChat />
       </div>
     </div>

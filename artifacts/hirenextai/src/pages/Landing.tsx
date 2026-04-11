@@ -111,7 +111,6 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
 
-      {/* ── Animated Background Glow Blobs ─────────────────────────────────── */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="blob-1 absolute top-[-80px] left-[15%]  w-[720px] h-[720px] rounded-full bg-indigo-600/12 blur-[160px]" />
         <div className="blob-2 absolute top-[30%]  right-[-60px] w-[520px] h-[520px] rounded-full bg-purple-600/10 blur-[130px]" />
@@ -128,7 +127,6 @@ export default function Landing() {
 
       <Navbar />
 
-      {/* ── Hero ─────────────────────────────────────────────────────────────── */}
       <section className="relative z-10 pt-40 pb-20 px-6 max-w-7xl mx-auto text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -137,7 +135,7 @@ export default function Landing() {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-md"
         >
           <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-white/80">{t("landing.heroBadge")}</span>
+          <span className="text-sm font-medium text-white/80">India's #1 AI Job Search Platform</span>
         </motion.div>
 
         <motion.h1
@@ -146,7 +144,7 @@ export default function Landing() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="text-5xl md:text-7xl font-display font-extrabold tracking-tight mb-8 leading-tight"
         >
-          {"landing.titlePrefix"} <br />
+          Find Your Next Job <br />
           <span className="text-gradient">
             {typedText}
             <span className="cursor-blink text-indigo-400 ml-0.5">|</span>
@@ -169,19 +167,17 @@ export default function Landing() {
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           <Link href="/register" className="btn-primary py-4 px-8 text-lg w-full sm:w-auto hover:shadow-[0_0_40px_rgba(99,102,241,0.5)] hover:scale-[1.03] transition-all duration-300">
-            {"landing.startFree"}
+            Start for Free
           </Link>
-          {/* FIX 3: Was calling undefined setShowDemoRoleModal — now uses setDemoRoleModalOpen */}
           <button
             onClick={() => setDemoRoleModalOpen(true)}
             disabled={demoLoading}
             className="btn-secondary py-4 px-8 text-lg w-full sm:w-auto flex items-center justify-center gap-2 disabled:opacity-60 hover:bg-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.06)] transition-all duration-300"
           >
-            {demoLoading ? <><Zap className="w-5 h-5 animate-pulse" /> {t("landing.loadingDemo")}</> : <><Zap className="w-5 h-5" /> {t("landing.viewDemo")}</>}
+            {demoLoading ? <><Zap className="w-5 h-5 animate-pulse" /> Loading Demo...</> : <><Zap className="w-5 h-5" /> View Live Demo</>}
           </button>
         </motion.div>
 
-        {/* Social Proof */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -198,7 +194,6 @@ export default function Landing() {
           <span>No credit card required</span>
         </motion.div>
 
-        {/* Scroll indicator */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -210,25 +205,6 @@ export default function Landing() {
         </motion.div>
       </section>
 
-      {showDemoRoleModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setShowDemoRoleModal(false)} />
-          <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#111124] p-6">
-            <h3 className="text-xl font-semibold mb-2">Choose your live demo</h3>
-            <p className="text-sm text-white/60 mb-5">Explore the product without logging in.</p>
-            <div className="grid grid-cols-1 gap-3">
-              <button onClick={() => handleDemoLaunch("job_seeker")} className="px-4 py-3 rounded-xl border border-indigo-500/40 bg-indigo-500/15 text-indigo-200 hover:bg-indigo-500/25 transition">
-                Continue as Job Seeker
-              </button>
-              <button onClick={() => handleDemoLaunch("recruiter")} className="px-4 py-3 rounded-xl border border-purple-500/40 bg-purple-500/15 text-purple-200 hover:bg-purple-500/25 transition">
-                Continue as Recruiter
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Trust Badges ─────────────────────────────────────────────────────── */}
       <section className="relative z-10 py-8 px-6 max-w-4xl mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {trustBadges.map((badge, i) => (
@@ -243,13 +219,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Live Job Cards Preview ────────────────────────────────────────────── */}
       <section className="relative z-10 py-16 px-6 max-w-5xl mx-auto">
         <FadeUp className="text-center mb-10">
           <h2 className="text-3xl md:text-4xl font-display font-bold mb-3">Live Jobs Across India</h2>
           <p className="text-white/50 max-w-xl mx-auto">Aggregated from top job boards — updated in real time.</p>
         </FadeUp>
-
         <div className="grid md:grid-cols-3 gap-4">
           {[
             { title: "Cyber Security Analyst", company: "HCL Technologies", location: "Bangalore", salary: "₹6–10 LPA", badge: "Remote OK", color: "border-red-500/20 bg-red-500/5", delay: 0 },
@@ -269,16 +243,13 @@ export default function Landing() {
                   <MapPin className="w-3 h-3 shrink-0" />{job.company} · {job.location}
                 </p>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-emerald-400 flex items-center gap-0.5">
-                    {job.salary}
-                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">{job.salary}</span>
                   <span className="text-xs text-white/30">Apply with AI →</span>
                 </div>
               </div>
             </FadeUp>
           ))}
         </div>
-
         <FadeUp delay={0.3} className="text-center mt-6">
           <Link href="/register" className="inline-flex items-center gap-2 text-primary hover:text-white border border-primary/30 hover:border-primary/60 hover:bg-primary/10 px-6 py-3 rounded-xl font-medium text-sm transition-all duration-200">
             Browse All Jobs <ArrowRight className="w-4 h-4" />
@@ -286,13 +257,11 @@ export default function Landing() {
         </FadeUp>
       </section>
 
-      {/* ── Feature Cards ─────────────────────────────────────────────────────── */}
       <section className="relative z-10 py-16 px-6 max-w-7xl mx-auto">
         <FadeUp className="text-center mb-14">
           <h2 className="text-3xl md:text-5xl font-display font-bold mb-4">Your AI Career Advantage</h2>
           <p className="text-white/60 max-w-xl mx-auto">Everything you need to stand out in today's competitive market.</p>
         </FadeUp>
-
         <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
           {featureCards.map((feature, i) => (
             <FadeUp key={i} delay={i * 0.07}>
@@ -306,7 +275,6 @@ export default function Landing() {
             </FadeUp>
           ))}
         </div>
-
         <FadeUp delay={0.4} className="mt-10 text-center">
           <Link href="/features" className="inline-flex items-center gap-2 text-primary hover:text-white border border-primary/30 hover:border-primary/60 hover:bg-primary/10 px-6 py-3 rounded-xl font-medium text-sm transition-all duration-200">
             Explore All Features <ArrowRight className="w-4 h-4" />
@@ -314,13 +282,11 @@ export default function Landing() {
         </FadeUp>
       </section>
 
-      {/* ── How It Works ─────────────────────────────────────────────────────── */}
       <section className="relative z-10 py-16 px-6 max-w-5xl mx-auto">
         <FadeUp className="text-center mb-14">
           <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">How It Works</h2>
           <p className="text-white/60 max-w-xl mx-auto">From zero to interview-ready in minutes.</p>
         </FadeUp>
-
         <div className="grid md:grid-cols-4 gap-6">
           {howItWorks.map((step, i) => (
             <FadeUp key={i} delay={i * 0.1}>
@@ -336,7 +302,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Founder Section ───────────────────────────────────────────────────── */}
       <section className="relative z-10 py-20 px-6 max-w-5xl mx-auto">
         <FadeUp className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4">
@@ -345,60 +310,38 @@ export default function Landing() {
           </div>
           <h2 className="text-3xl md:text-4xl font-display font-bold">Meet The Founder</h2>
         </FadeUp>
-
         <FadeUp delay={0.15}>
           <div className="glass-card hover-glow relative overflow-hidden p-8 md:p-12">
             <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-purple-600/8 blur-[80px] pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-indigo-600/6 blur-[60px] pointer-events-none" />
-
             <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
               <div className="shrink-0 flex flex-col items-center gap-4">
                 <div className="float-avatar relative">
                   <div className="absolute inset-[-3px] rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 blur-[2px]" />
                   <div className="absolute inset-[-3px] rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-60" />
                   <div className="relative w-36 h-36 rounded-full overflow-hidden border-2 border-white/10">
-                    <img
-                      src="/founder.jpg"
-                      alt="Kunal Purohit"
-                      className="w-full h-full object-cover object-top"
-                    />
+                    <img src="/founder.jpg" alt="Kunal Purohit" className="w-full h-full object-cover object-top" />
                   </div>
                   <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-400 rounded-full border-2 border-background shadow-[0_0_8px_rgba(74,222,128,0.6)]" />
                 </div>
-
                 <div className="flex items-center gap-3">
-                  <a
-                    href="https://www.linkedin.com/in/kunal-purohit-74a0933b6/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-lg bg-[#0A66C2]/15 border border-[#0A66C2]/30 flex items-center justify-center hover:bg-[#0A66C2]/25 hover:border-[#0A66C2]/50 transition-all duration-200 hover:scale-105"
-                    title="LinkedIn"
-                  >
+                  <a href="https://www.linkedin.com/in/kunal-purohit-74a0933b6/" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-[#0A66C2]/15 border border-[#0A66C2]/30 flex items-center justify-center hover:bg-[#0A66C2]/25 hover:border-[#0A66C2]/50 transition-all duration-200 hover:scale-105" title="LinkedIn">
                     <Linkedin className="w-4 h-4 text-[#0A66C2]" />
                   </a>
-                  <a
-                    href="https://github.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-lg bg-white/5 border border-white/15 flex items-center justify-center hover:bg-white/10 hover:border-white/25 transition-all duration-200 hover:scale-105"
-                    title="GitHub"
-                  >
+                  <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-white/5 border border-white/15 flex items-center justify-center hover:bg-white/10 hover:border-white/25 transition-all duration-200 hover:scale-105" title="GitHub">
                     <Github className="w-4 h-4 text-white/70" />
                   </a>
                 </div>
               </div>
-
               <div className="text-center md:text-left flex-1">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold mb-4">
                   <Sparkles className="w-3 h-3" /> Founder & Developer
                 </div>
                 <h3 className="text-3xl md:text-4xl font-display font-extrabold text-white mb-1">Kunal Purohit</h3>
                 <p className="text-white/50 text-sm mb-6">Founder & Developer of HirenextAI</p>
-
                 <p className="text-white/70 leading-relaxed text-base max-w-xl">
                   HirenextAI was built with the vision to make job searching <span className="text-white font-medium">smarter and faster</span> for students and freshers. By combining real job data with AI-powered career tools, the platform aims to simplify career growth and reduce job search stress.
                 </p>
-
                 <div className="mt-8 flex flex-wrap gap-3 justify-center md:justify-start">
                   {[
                     { label: "50,000+", sub: "Users Helped" },
@@ -417,13 +360,11 @@ export default function Landing() {
         </FadeUp>
       </section>
 
-      {/* ── Testimonials ──────────────────────────────────────────────────────── */}
       <section className="relative z-10 py-16 px-6 max-w-6xl mx-auto">
         <FadeUp className="text-center mb-14">
           <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Loved by Job Seekers Across India</h2>
           <p className="text-white/60 max-w-xl mx-auto">Real stories from real people who landed their dream jobs.</p>
         </FadeUp>
-
         <div className="grid md:grid-cols-3 gap-6">
           {testimonials.map((t, i) => (
             <FadeUp key={i} delay={i * 0.1}>
@@ -454,7 +395,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Pricing Teaser ────────────────────────────────────────────────────── */}
       <section className="relative z-10 py-16 px-6 max-w-5xl mx-auto text-center">
         <FadeUp>
           <div className="glass-card hover-glow p-12 relative overflow-hidden">
